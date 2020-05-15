@@ -50,45 +50,11 @@ Match.prototype.addVoteForRandom = function addVoteForRandom(userId) {
 
 }
 
-Match.prototype.createCaptains = function createCaptains(userMatchStats) {
-    // TODO may need to adjust this if/when player ranking changes
-    // try to order players by rank, the top 2 players are captains
-    let playersByWinRate = [];
-    for(p of this.players) {
-        var winRate;
-        if(userMatchStats == null || p.id in userMatchStats)
-            winRate = userMatchStats[p.id].wins/(userMatchStats[p.id].wins + userMatchStats[p.id].losses);
-        else
-            winRate = 0;
-
-        let pTuple = {player: p, rate: winRate};
-
-        // now insert the player into the array sorted by win rate
-        if(playersByWinRate.length === 0) {
-            // base case, array is empty
-            playersByWinRate.push(pTuple);
-        }
-        else {
-            var insertedPlayer = false;
-            for(var i = 0; i < playersByWinRate.length; i++) {
-                if(pTuple.rate > playersByWinRate[i].rate) {
-                    playersByWinRate.splice(i, 0, pTuple);
-                    insertedPlayer = true;
-                    break;
-                }
-            }
-            if(!insertedPlayer)
-                playersByWinRate.push(pTuple);
-        }
-    }
-
-
-
-    // all the players have been inserted into playersByWinRate
-    // now select the captains (the top 2 players in this match)
-    this.captains[0] = playersByWinRate[0].player;
-    this.captains[1] = playersByWinRate[1].player;
-    this.playerPickList = playersByWinRate.slice(2);
+Match.prototype.createCaptains = function createCaptains(playersByRank) {
+    // the top 2 players are captains
+    this.captains[0] = playersByRank[0].player;
+    this.captains[1] = playersByRank[1].player;
+    this.playerPickList = playersByRank.slice(2);
 
     this.teams[0].push(this.captains[0]);
     this.teams[1].push(this.captains[1]);
