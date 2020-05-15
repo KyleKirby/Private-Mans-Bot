@@ -41,6 +41,7 @@ TODO:
 
 const config = require('./config.js');
 const Match = require('./match');
+const Player = require('./player');
 const mongo = require('mongodb');
 const fs = require('fs');
 
@@ -108,7 +109,6 @@ const MAX_MATCH_ID = 100000; // match id will wrap to 0 upon reaching this value
 var matches = {}; // map match id to match object
 var matchArhive = {}; // map matchid id to match object
 var membersInMatches = {}; // map user id to match id
-var userMatchStats = {}; // map user id to stat object which has members { wins, losses }
 
 
 module.exports = {
@@ -247,7 +247,7 @@ function addToFourMansQueue(msg) {
     var s = `>>> Added <@${msg.member.id}> to the 4 mans queue.
 Users in queue: ${queueFourString()}\n`;
 
-    if(queue.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
+    if(queueFour.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
         // the queue is filled!
         // now we need to make teams
         createMatch(msg, config.FOUR_MANS_TEAM_SIZE);
@@ -455,24 +455,52 @@ function createMatch(msg, teamSize) {
 
 function decrementMatchLosses(team) {
     for (m of team) {
-        if (m.id in userMatchStats) {
-            userMatchStats[m.id].losses--;
-        }
-        else {
-            // no stats for this player?
-        }
+        decrementMemberMatchLosses(m);
     }
 }
 
 function decrementMatchWins(team) {
     for (m of team) {
-        if (m.id in userMatchStats) {
-            userMatchStats[m.id].wins--;
+        decrementMemberMatchWins(m);
+    }
+}
+
+function decrementMemberMatchLosses(member) {
+    const query = {_id: member.id};
+    db.collection('players').findOne(query, (err, result) => {
+        if(err) {
+            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
         }
         else {
-            // no stats for this player?
+            if(result != null) {
+                // found player in database, need to update document for that player in the players collection
+                db.collection('players').updateOne(query, {$inc: {losses: -1}}, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error undoing player loss\n', false);
+                    }
+                });
+            }
         }
-    }
+    });
+}
+
+function decrementMemberMatchWins(member) {
+    const query = {_id: member.id};
+    db.collection('players').findOne(query, (err, result) => {
+        if(err) {
+            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
+        }
+        else {
+            if(result != null) {
+                // found player in database, need to update document for that player in the players collection
+                db.collection('players').updateOne(query, {$inc: {wins: -1}}, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error undoing player win\n', false);
+                    }
+                });
+            }
+        }
+    });
 }
 
 function displayHelp(msg) {
@@ -658,6 +686,37 @@ Captains now have 2 minutes to pick teams.`);
     messageCaptain(msg, match, 1);
 }
 
+async function orderPlayersByRank(players) {
+    var playerList = [];
+
+    // first retrieve player stats
+    for(p of players) {
+        try{
+            let result = await db.collection('players').findOne({_id: p.id});
+            if(result == null) {
+                // player does not exist in players collection
+                let player = Player(p);
+                player.player = p;
+                playerList.push(player);
+            }
+            else {
+                // found this player in the players collection
+                result.player = p;
+                playerList.push(result);
+            }
+        }
+        catch (err) {
+            handleDataBaseError(err, `Error finding player in players collection\n`, false);
+            let player = Player(p);
+            player.player = p;
+            playerList.push(player);
+        }
+    }
+
+    playerList.sort(rankPlayers);
+    return playerList;
+}
+
 function queueFourString() {
     return userMentionString(queueFour);
 }
@@ -668,6 +727,17 @@ function queueString() {
 
 function queueTwoString() {
     return userMentionString(queueTwo);
+}
+
+function rankPlayers(p1,p2) {
+    if ((p1.wins - p1.losses) < (p2.wins - p2.losses)) {
+        return 1;
+    }
+    else if ((p1.wins - p1.losses) > (p2.wins - p2.losses)){
+        return -1;
+    }
+    else
+        return 0;
 }
 
 function removeUserFromFourMansQueue(msg) {
@@ -764,7 +834,7 @@ function removeUserFromQueue(msg) {
 }
 
 function reportMatchResult(msg) {
-    // update userMatchStats, remove match from matches object and remove users from membersInMatches object
+    // remove match from matches object and remove users from membersInMatches object
 
     var match, matchId;
 
@@ -882,7 +952,6 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
 
 function reportMemberLost(member) {
     const query = {_id: member.id};
-
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
             handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
@@ -890,7 +959,7 @@ function reportMemberLost(member) {
         else {
             if(result == null) {
                 // did not find player in database, need to insert document for that player in the players collection
-                let o = {_id: member.id, name: member.displayName, wins: 0, losses: 1};
+                let o = Player(member, {losses: 1, wins: 0});
                 db.collection('players').insertOne(o, (err, res) => {
                     if(err) {
                         handleDataBaseError(err, 'Error inserting player lost\n', false);
@@ -907,8 +976,6 @@ function reportMemberLost(member) {
             }
         }
     });
-
-
 }
 
 function reportMemberWon(member) {
@@ -921,7 +988,7 @@ function reportMemberWon(member) {
         else {
             if(result == null) {
                 // did not find player in database, need to insert document for that player in the players collection
-                let o = {_id: member.id, name: member.displayName, wins: 1, losses: 0};
+                let o = Player(member, {losses: 0, wins: 1});
                 db.collection('players').insertOne(o, (err, res) => {
                     if(err) {
                         handleDataBaseError(err, 'Error inserting player won\n', false);
@@ -966,7 +1033,7 @@ function setCommand(msg) {
 }
 
 function showLeaderboard(msg) {
-    msg.channel.send(`The leaderboard may be found at http://${config.serverIP}:${config.leaderboardPort}/leaderboard`);
+    msg.channel.send(`The leaderboard may be found at http://${config.serverIP}:${config.leaderboardPort}/leaderboard`).then().catch(console.error);
 }
 
 function showMatches(msg) {
@@ -1108,7 +1175,7 @@ function userMentionString(list) {
     return s;
 }
 
-function voteForCaptains(msg) {
+async function voteForCaptains(msg) {
     let match = getUserMatch(msg.member.id);
     if (match === null) {
         return;
@@ -1124,7 +1191,7 @@ function voteForCaptains(msg) {
 Votes for captains: ${match.captainVotes}`);
         if((match.teamSize === config.SIX_MANS_TEAM_SIZE && match.captainVotes > config.SIX_MANS_MIN_VOTE_COUNT) || (match.teamSize === config.FOUR_MANS_TEAM_SIZE && match.captainVotes > config.FOUR_MANS_MIN_VOTE_COUNT)) {
             // the requisite vote amount has been reached, create captains to select teams
-            match.createCaptains(userMatchStats);
+            match.createCaptains(await orderPlayersByRank(match.players));
             messageCaptains(msg, match);
         }
     }
