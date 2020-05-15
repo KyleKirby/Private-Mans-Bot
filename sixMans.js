@@ -40,7 +40,60 @@ TODO:
 */
 
 const config = require('./config.js');
-const Match = require('./match')
+const Match = require('./match');
+const mongo = require('mongodb');
+const fs = require('fs');
+
+var MongoClient = require('mongodb').MongoClient;
+var url = "mongodb://localhost:27017/";
+
+// mongo db
+var db = null;
+
+function handleExit() {
+    if(db != null) {
+        db.close();
+    }
+}
+
+process.on('exit', handleExit);
+
+function handleDataBaseError(dberr, logMessage, exitProcess) {
+    console.error(dberr);
+    if(exitProcess) {
+        try {
+            const data = fs.writeFileSync('log.txt', logMessage, { flag: 'a+'});
+        }
+        catch(err) {
+            console.error(err);
+        }
+        process.exit();
+    }
+    else {
+        try {
+            const data = fs.writeFile('log.txt', logMessage, { flag: 'a+'}, (err) => {
+                if(err) throw err;
+            });
+        }
+        catch(err) {
+            console.error(err);
+        }
+    }
+
+}
+
+try{
+    const mongoOptions = { useUnifiedTopology: true };
+    MongoClient.connect(url, mongoOptions, function(err, mdb) {
+      if (err) throw err;
+      db = mdb.db('sixMans');
+    });
+}
+catch(err) {
+    handleDataBaseError(err, 'Error opening mongo db\n', true);
+}
+
+
 
 var userCommandPrefix = '.';
 
@@ -827,33 +880,75 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
         endMatch(msg, match);
 }
 
-function reportTeamLost(team) {
-    for (m of team) {
-        if (!(m.id in userMatchStats)) {
-            // no stats for this player yet, create an entry for them
-            userMatchStats[m.id] = {};
-            userMatchStats[m.id].name = m.displayName;
-            userMatchStats[m.id].wins = 0;
-            userMatchStats[m.id].losses = 1;
+function reportMemberLost(member) {
+    const query = {_id: member.id};
+
+    db.collection('players').findOne(query, (err, result) => {
+        if(err) {
+            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
         }
         else {
-            userMatchStats[m.id].losses++;
+            if(result == null) {
+                // did not find player in database, need to insert document for that player in the players collection
+                let o = {_id: member.id, name: member.displayName, wins: 0, losses: 1};
+                db.collection('players').insertOne(o, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error inserting player lost\n', false);
+                    }
+                });
+            }
+            else {
+                // found player in database, need to update document for that player in the players collection
+                db.collection('players').updateOne(query, {$inc: {losses: 1}}, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error updating player lost\n', false);
+                    }
+                });
+            }
         }
+    });
+
+
+}
+
+function reportMemberWon(member) {
+    const query = {_id: member.id};
+
+    db.collection('players').findOne(query, (err, result) => {
+        if(err) {
+            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
+        }
+        else {
+            if(result == null) {
+                // did not find player in database, need to insert document for that player in the players collection
+                let o = {_id: member.id, name: member.displayName, wins: 1, losses: 0};
+                db.collection('players').insertOne(o, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error inserting player won\n', false);
+                    }
+                });
+            }
+            else {
+                // found player in database, need to update document for that player in the players collection
+                db.collection('players').updateOne(query, {$inc: {wins: 1}}, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error updating player won\n', false);
+                    }
+                });
+            }
+        }
+    });
+}
+
+function reportTeamLost(team) {
+    for (m of team) {
+        reportMemberLost(m);
     }
 }
 
 function reportTeamWon(team) {
     for (m of team) {
-        if (!(m.id in userMatchStats)) {
-            // no stats for this player yet, create an entry for them
-            userMatchStats[m.id] = {};
-            userMatchStats[m.id].name = m.displayName;
-            userMatchStats[m.id].wins = 1;
-            userMatchStats[m.id].losses = 0;
-        }
-        else {
-            userMatchStats[m.id].wins++;
-        }
+        reportMemberWon(m);
     }
 }
 
@@ -871,57 +966,7 @@ function setCommand(msg) {
 }
 
 function showLeaderboard(msg) {
-    var lbStr = '```';
-    const rankPadding = 5;
-    const namePadding = 40;
-    const numberPadding = 10;
-    const padding = ' ';
-    var rank = '#'.padEnd(rankPadding, padding);
-    var name = 'Name'.padEnd(namePadding, padding);
-    var wins = 'Wins'.padEnd(numberPadding, padding);
-    var losses = 'Losses'.padEnd(numberPadding, padding);
-    var winsMinusLosses = '+/-'.padEnd(numberPadding, padding);
-    var rate = '%'.padEnd(numberPadding, padding);
-
-    var players = [];
-    for(var key in userMatchStats) {
-        let player = userMatchStats[key];
-        players.push(player);
-    }
-
-    players.sort((p1,p2) => {
-        if ((p1.wins - p1.losses) < (p2.wins - p2.losses)) {
-            return 1;
-        }
-        else if ((p1.wins - p1.losses) > (p2.wins - p2.losses)){
-            return -1;
-        }
-        else
-            return 0;
-    });
-
-    lbStr += rank + name + wins + losses + winsMinusLosses + rate + '\n';
-    var count = 1;
-    for(entry of players) {
-        rank = count.toString().padEnd(rankPadding, padding);
-        name = entry.name.padEnd(namePadding, padding);
-        wins = entry.wins.toString().padEnd(numberPadding, padding);
-        losses = entry.losses.toString().padEnd(numberPadding, padding);
-        winsMinusLosses = (entry.wins - entry.losses).toString().padEnd(numberPadding, padding);
-        if((entry.wins + entry.losses) === 0) {
-            // from undo?
-            rate = '0.00%';
-        }
-        else {
-            rate = (((entry.wins / (entry.wins + entry.losses)) * 100).toFixed(2) + '%').padEnd(numberPadding, padding);
-        }
-        lbStr += rank + name + wins + losses + winsMinusLosses + rate + '\n';
-        count++;
-    }
-    lbStr += '```';
-    // there is message character limit... might reach that with enough users
-    // should use a different method in the future
-    msg.author.send(lbStr).then().catch(console.error);
+    msg.channel.send(`The leaderboard may be found at http://${config.serverIP}:${config.leaderboardPort}/leaderboard`);
 }
 
 function showMatches(msg) {
