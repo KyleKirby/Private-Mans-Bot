@@ -1209,38 +1209,103 @@ function setCommand(msg) {
         return;
     }
     let args = msg.content.split(' ');
-    if(args.length < 2)
+    let argIter = 1;
+    if(args.length < argIter + 1)
         return;
-    if(args[1] === 'prefix') {
-        // change command prefix
-        if(args.length < 3)
-            return;
-        userCommandPrefix = args[2];
 
-        db.collection('config').findOne({}, (err, dbConf) => {
-            if(err) {
-                handleDataBaseError(err, `Error loading config from mongoDB\n`, false);
-            }
-            else {
-                if(dbConf == null) {
-                    // no config stored yet, insert config
-                    db.collection('config').insertOne({commandPrefix: userCommandPrefix, nextMatchId: nextMatchId}, (err, res) => {
-                        if(err) {
-                            handleDataBaseError(err, `Error updating config in mongoDB\n`, false);
-                        }
-                    });
+    let arg = args[argIter];
+    argIter++;
+
+    switch(arg) {
+        case 'prefix':
+            // change command prefix
+            if(args.length < argIter + 1)
+                return;
+            userCommandPrefix = args[argIter];
+
+            db.collection('config').findOne({}, (err, dbConf) => {
+                if(err) {
+                    handleDataBaseError(err, `Error loading config from mongoDB\n`, false);
                 }
                 else {
-                    // need to update config
-                    db.collection('config').updateOne({}, {$set: {commandPrefix: userCommandPrefix}}, (err, res) => {
-                        if(err) {
-                            handleDataBaseError(err, `Error updating config in mongoDB\n`, false);
-                        }
-                    });
+                    if(dbConf != null) {
+                        // need to update config
+                        db.collection('config').updateOne({}, {$set: {commandPrefix: userCommandPrefix}}, (err, res) => {
+                            if(err) {
+                                handleDataBaseError(err, `Error updating config in mongoDB\n`, false);
+                            }
+                            else {
+                                msg.channel.send(`Updated command prefix to ${userCommandPrefix}`);
+                            }
+                        });
+                    }
                 }
+            });
+            break;
+        case 'stats':
+            // set player stats
+            if(args.length < argIter + 2)
+                return;
+
+            let player = msg.mentions.users.first();
+            if(!player) {
+                return;
+            }
+            argIter++;
+
+            let wins = Number(args[argIter]);
+            argIter++;
+
+            let losses = Number(args[argIter]);
+
+            let member = {displayName: player.username, id: player.id };
+            //console.log(`Name: ${player.username} ID: ${playerId} stats: wins ${wins} losses ${losses}`);
+
+            const query = {_id: player.id};
+            const newStats = {wins: wins, losses: losses, matches: {}};
+
+            try{
+                db.collection('players').findOne(query, (err, result) => {
+                    if(err) throw err;
+
+                    if(result == null) {
+                        // there is no document for this player, need to insert a new one with these stats
+                        //const player = Player();
+                        let o = Player(member, newStats);
+                        db.collection('players').insertOne(o, (err, res) => {
+                            if(err) {
+                                handleDataBaseError(err, 'Error inserting player\n', false);
+                            }
+                            else {
+                                msg.channel.send(`Updated <@${player.id}> stats: wins ${wins} losses ${losses}`);
+                            }
+                        });
+                        //console.log(`Name: ${player.username} ,ID <@${playerId}> stats: wins ${wins}, losses ${losses}`);
+                    }
+                    else {
+                        // just need to update this player
+                        const update = {$set: newStats};
+                        db.collection('players').updateOne(query, update, (err, res) => {
+                            if(err) {
+                                handleDataBaseError(err, 'Error inserting player\n', false);
+                            }
+                            else {
+                                msg.channel.send(`Updated <@${player.id}> stats: wins ${wins} losses ${losses}`);
+                            }
+                        });
+                    }
+                });
 
             }
-        });
+            catch(err) {
+                handleDataBaseError(err, `Error updating player stats\n`, false);
+            }
+
+
+            break;
+
+        default:
+            // ignore
     }
 }
 
