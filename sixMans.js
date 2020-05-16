@@ -423,7 +423,7 @@ function cancelMatch(msg) {
 }
 
 function clearQueue(msg) {
-    if((msg.member.roles.cache.has(config.SIX_MANS_ROLE)) === 0) {
+    if(msg.member.roles.cache.has(config.SIX_MANS_ROLE) === false) {
         // user does not have sufficient permissions for this command
         return;
     }
@@ -1204,7 +1204,7 @@ function reportTeamWon(team) {
 }
 
 function setCommand(msg) {
-    if((msg.member.roles.cache.has(config.SIX_MANS_ROLE)) === 0) {
+    if(msg.member.roles.cache.has(config.SIX_MANS_ROLE) === false) {
         // user does not have sufficient permissions for this command
         return;
     }
@@ -1428,7 +1428,7 @@ Password: ${match.password}`;
 
 function undoMatchResult(msg) {
     // command format undo <match id>
-    if((msg.member.roles.cache.has(config.SIX_MANS_ROLE)) === 0) {
+    if(msg.member.roles.cache.has(config.SIX_MANS_ROLE) === false) {
         // user does not have sufficient permissions for this command
         return;
     }
