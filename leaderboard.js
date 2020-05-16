@@ -210,9 +210,15 @@ tr:nth-child(even) {
             var winsMinusLosses = '+/-'.padEnd(numberPadding, padding);
             var rate = '%'.padEnd(numberPadding, padding);
 
-            var players = [];
-            //console.log(result);
-            players = result;
+            var players = result;
+
+            players.sort(rankPlayers);
+
+            let count = 1;
+            for(entry of players) {
+                entry.rank = count;
+                count++;
+            }
 
             /*
             const SORT_BY_RANK = 0;
@@ -223,9 +229,6 @@ tr:nth-child(even) {
             const SORT_BY_WIN_PERCENTAGE = 5;
             */
             switch(sort){
-                case SORT_BY_RANK:
-                    players.sort(rankPlayers);
-                    break;
                 case SORT_BY_NAME:
                     players.sort(sortPlayersBynames);
                     break;
@@ -243,10 +246,11 @@ tr:nth-child(even) {
                     break;
             }
 
+
+
             lbStr += `<tr><th>` + rank + `<a href='/leaderboard?sort=rank'>&#8659;</a> </th><th>` + name + ` <a href='/leaderboard?sort=name'>&#8659;</a> </th><th>` + wins + ` <a href='/leaderboard?sort=wins'>&#8659;</a> </th><th>` + losses + ` <a href='/leaderboard?sort=losses'>&#8659;</a> </th><th>` + winsMinusLosses + ` <a href='/leaderboard?sort=winsminuslosses'>&#8659;</a> </th><th>` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th></tr>`;
-            var count = 1;
             for(entry of players) {
-                rank = count.toString();
+                rank = entry.rank.toString();
                 name = `<a href='/player?q=${entry._id}'>${entry.name}</a>`;
                 wins = entry.wins.toString();
                 losses = entry.losses.toString();
@@ -259,7 +263,6 @@ tr:nth-child(even) {
                     rate = (((entry.wins / (entry.wins + entry.losses)) * 100).toFixed(2) + '%');
                 }
                 lbStr += '<tr><td>' + rank + '</td><td>' + name + '</td><td>' + wins + '</td><td>' + losses + '</td><td>' + winsMinusLosses + '</td><td>' + rate + '</td></tr>';
-                count++;
             }
         }
         lbStr+=`</table>
