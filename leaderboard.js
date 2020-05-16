@@ -14,6 +14,13 @@ function handleExit() {
     }
 }
 
+const SORT_BY_RANK = 0;
+const SORT_BY_NAME = 1;
+const SORT_BY_WINS = 2;
+const SORT_BY_LOSSES = 3;
+const SORT_BY_WINS_MINUS_LOSSES = 4;
+const SORT_BY_WIN_PERCENTAGE = 5;
+
 process.on('exit', handleExit);
 
 function handleDataBaseError(dberr, logMessage, exitProcess) {
@@ -61,6 +68,7 @@ async function getPlayerSync(playerId) {
     }
 }
 
+// default player ranking
 function rankPlayers(p1,p2) {
     if ((p1.wins - p1.losses) < (p2.wins - p2.losses)) {
         return 1;
@@ -72,7 +80,7 @@ function rankPlayers(p1,p2) {
         return 0;
 }
 
-function showLeaderboard(req, res) {
+function showLeaderboard(req, res, sort) {
     db.collection('players').find({}).toArray((err, result) => {
         if(err) {
             handleDataBaseError(err, 'Error retrieving player stats\n', false);
@@ -117,9 +125,36 @@ tr:nth-child(even) {
             //console.log(result);
             players = result;
 
-            players.sort(rankPlayers);
+            /*
+            const SORT_BY_RANK = 0;
+            const SORT_BY_NAME = 1;
+            const SORT_BY_WINS = 2;
+            const SORT_BY_LOSSES = 3;
+            const SORT_BY_WINS_MINUS_LOSSES = 4;
+            const SORT_BY_WIN_PERCENTAGE = 5;
+            */
+            switch(sort){
+                case SORT_BY_RANK:
+                    players.sort(rankPlayers);
+                    break;
+                case SORT_BY_NAME:
+                    players.sort(sortPlayersBynames);
+                    break;
+                case SORT_BY_WINS:
+                    players.sort(sortPlayersByWins);
+                    break;
+                case SORT_BY_LOSSES:
+                    players.sort(sortPlayersByLosses);
+                    break;
+                case SORT_BY_WINS_MINUS_LOSSES:
+                    players.sort(sortPlayersByWinsMinusLosses);
+                    break;
+                case SORT_BY_WIN_PERCENTAGE:
+                    players.sort(sortPlayersByWinpercentage);
+                    break;
+            }
 
-            lbStr += '<tr><th>' + rank + '</th><th>' + name + '</th><th>' + wins + '</th><th>' + losses + '</th><th>' + winsMinusLosses + '</th><th>' + rate + '</th></tr>';
+            lbStr += `<tr><th>` + rank + `<a href='/leaderboard?sort=rank'>&#8659;</a> </th><th>` + name + ` <a href='/leaderboard?sort=name'>&#8659;</a> </th><th>` + wins + ` <a href='/leaderboard?sort=wins'>&#8659;</a> </th><th>` + losses + ` <a href='/leaderboard?sort=losses'>&#8659;</a> </th><th>` + winsMinusLosses + ` <a href='/leaderboard?sort=winsminuslosses'>&#8659;</a> </th><th>` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th></tr>`;
             var count = 1;
             for(entry of players) {
                 rank = count.toString();
@@ -266,13 +301,103 @@ tr:nth-child(even) {
     res.send(pStr);
 }
 
+function sortPlayersByLosses(p1,p2) {
+    if (p1.losses < p2.losses) {
+        return 1;
+    }
+    else if (p1.losses > p2.losses) {
+        return -1;
+    }
+    else
+        return 0;
+}
+
+function sortPlayersByName(p1,p2) {
+    if (p1.name < p2.name) {
+        return 1;
+    }
+    else if (p1.name > p2.name) {
+        return -1;
+    }
+    else
+        return 0;
+}
+
+function sortPlayersByWinpercentage(p1,p2) {
+    let p1Rate, p2Rate;
+    if((p1.wins + p1.losses) === 0) {
+        p1Rate = 0;
+    }
+    else {
+        p1Rate = p1.wins / (p1.wins + p1.losses);
+    }
+
+    if((p2.wins + p2.losses) === 0) {
+        p2Rate = 0;
+    }
+    else {
+        p2Rate = p2.wins / (p2.wins + p2.losses);
+    }
+
+    if (p1Rate < p2Rate) {
+        return 1;
+    }
+    else if (p1Rate > p2Rate) {
+        return -1;
+    }
+    else
+        return 0;
+}
+
+function sortPlayersByWins(p1,p2) {
+    if (p1.wins < p2.wins) {
+        return 1;
+    }
+    else if (p1.wins > p2.wins) {
+        return -1;
+    }
+    else
+        return 0;
+}
+
+function sortPlayersByWinsMinusLosses(p1, p2) {
+    return rankPlayers(p1, p2);
+}
+
 const express = require('express');
 const app = express();
 const port = config.leaderboardPort;
 
 app.get('/leaderboard', (req, res) => {
     // do any request validation here
-    showLeaderboard(req,res);
+
+    if(req.query.sort == undefined) {
+        showLeaderboard(req, res, SORT_BY_RANK);
+    }
+    else {
+        let sort = req.query.sort.toLowerCase();
+        switch(sort) {
+            case 'name':
+                showLeaderboard(req, res, SORT_BY_RANK);
+                break;
+            case 'wins':
+                showLeaderboard(req, res, SORT_BY_WINS);
+                break;
+            case 'losses':
+                showLeaderboard(req, res, SORT_BY_LOSSES);
+                break;
+            case 'winsminuslosses':
+                showLeaderboard(req, res, SORT_BY_WINS_MINUS_LOSSES);
+                break;
+            case 'winpercentage':
+                showLeaderboard(req, res, SORT_BY_WIN_PERCENTAGE);
+                break;
+            default:
+                showLeaderboard(req, res, SORT_BY_RANK);
+        }
+    }
+
+
 });
 
 app.get('/player', (req, res) => {
