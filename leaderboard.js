@@ -51,10 +51,15 @@ catch(err) {
     handleDataBaseError(err, 'Error opening mongo db\n', true);
 }
 
-
-const express = require('express');
-const app = express();
-const port = config.leaderboardPort;
+async function getPlayerSync(playerId) {
+    const query = {_id: playerId};
+    try{
+        return await db.collection('players').findOne(query);
+    }
+    catch(err) {
+        console.error(err);
+    }
+}
 
 function rankPlayers(p1,p2) {
     if ((p1.wins - p1.losses) < (p2.wins - p2.losses)) {
@@ -68,9 +73,6 @@ function rankPlayers(p1,p2) {
 }
 
 function showLeaderboard(req, res) {
-
-
-
     db.collection('players').find({}).toArray((err, result) => {
         if(err) {
             handleDataBaseError(err, 'Error retrieving player stats\n', false);
@@ -121,7 +123,7 @@ tr:nth-child(even) {
             var count = 1;
             for(entry of players) {
                 rank = count.toString();
-                name = entry.name;
+                name = `<a href='/player?q=${entry._id}'>${entry.name}</a>`;
                 wins = entry.wins.toString();
                 losses = entry.losses.toString();
                 winsMinusLosses = (entry.wins - entry.losses).toString();
@@ -143,9 +145,164 @@ tr:nth-child(even) {
     });
 }
 
+async function showPlayer(req, res, player) {
+    var pStr = `<!DOCTYPE html>
+<html>
+<head>
+<style>
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #dddddd;
+}
+</style>
+</head>
+<body>`;
+
+    pStr += `<h1>${player.name}</h1>
+<table>
+<tr>
+    <th>
+        Timestamp
+    </th>
+    <th>
+        Match ID
+    </th>
+    <th>
+        Team 1
+    </th>
+    <th>
+        Team 2
+    </th>
+    <th>
+        Winning Team
+    </th>
+</tr>`;
+
+
+    // build query for player matches
+    let query = {$or: []};
+    for(timestamp in player.matches) {
+        query.$or.push({timestamp:Number(timestamp), id:player.matches[timestamp]});
+    }
+
+    var matches = [];
+
+    if(query.$or.length > 0) {
+        // need to query for something
+        try{
+            matches = await db.collection('matches').find(query).toArray();
+        }
+        catch(err) {
+            console.error(err)
+        }
+    }
+
+
+    if(matches.length > 0) {
+        // found some matches
+        for(match of matches) {
+            //console.log(match);
+            // get players for team 1
+            let team0String = "";
+            for(p of match.teams[0]) {
+                let pl = await getPlayerSync(p.id);
+                if(pl != null) {
+                    team0String += ` <a href='/player?q=${pl._id}'>${pl.name}</a>,`
+                }
+            }
+            if(team0String.length > 0) {
+                // erase last comma
+                team0String = team0String.replace(/,$/,"");
+            }
+            // get players for team 2
+            let team1String = "";
+            for(p of match.teams[1]) {
+                let pl = await getPlayerSync(p.id);
+                if(pl != null) {
+                    team1String += ` <a href='/player?q=${pl._id}'>${pl.name}</a>,`
+                }
+            }
+            if(team1String.length > 0) {
+                // erase last comma
+                team1String = team1String.replace(/,$/,"");
+            }
+            pStr += `<tr>
+    <td>
+        ${match.timestamp}
+    </td>
+    <td>
+        ${match.id}
+    </td>
+    <td>
+        ${team0String}
+    </td>
+    <td>
+        ${team1String}
+    </td>
+    <td>
+        Team ${match.winningTeam+1}
+    </td>
+
+</tr>`
+        }
+    }
+
+    pStr += '</table>'
+
+
+    pStr += `</body>
+</html>`
+    res.send(pStr);
+}
+
+const express = require('express');
+const app = express();
+const port = config.leaderboardPort;
+
 app.get('/leaderboard', (req, res) => {
     // do any request validation here
     showLeaderboard(req,res);
+});
+
+app.get('/player', (req, res) => {
+
+
+    if(req.query.q != undefined) {
+        let qId = req.query.q.replace('"','').replace("'", "").replace('?', '').replace(':', '');
+        const query = {_id: qId};
+        try{
+            db.collection('players').findOne(query, (err, result) => {
+                if(err) throw err;
+                if(result != null) {
+                    // found player with this ID
+                    showPlayer(req, res, result);
+                }
+                else {
+                    // did not find player with this ID
+                    res.send('Did not find player with ID ' + req.query.q);
+                }
+            });
+        }
+        catch(err) {
+            console.error(err);
+            res.send('Error encountered while searching for ' + req.query.q);
+        }
+    }
+    else {
+        res.send('Need to query for specific player ID');
+    }
+
 });
 
 
