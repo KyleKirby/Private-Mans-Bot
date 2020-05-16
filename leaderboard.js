@@ -2,6 +2,8 @@ const mongo = require('mongodb');
 const fs = require('fs');
 const config = require('./config');
 
+var sixMans = require('./sixMans');
+
 
 var MongoClient = require('mongodb').MongoClient;
 var url = "mongodb://localhost:27017/";
@@ -78,6 +80,90 @@ function rankPlayers(p1,p2) {
     }
     else
         return 0;
+}
+
+function showHelp(req, res) {
+    let userCommandPrefix = sixMans.getCommandPrefix();
+    const helpString = `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+    </style>
+</head>
+<body>
+    Valid commands are:</br>
+</br>
+    ${userCommandPrefix}b</br>
+    ${userCommandPrefix}balanced</br>
+    -vote for balanced teams</br>
+</br>
+    ${userCommandPrefix}c</br>
+    ${userCommandPrefix}captains</br>
+    -vote for captains</br>
+</br>
+    ${userCommandPrefix}cancel</br>
+    -vote to cancel the match you are currently in</br>
+</br>
+    ${userCommandPrefix}clear</br>
+    -clear out the current queue</br>
+</br>
+    ${userCommandPrefix}help</br>
+    -display help URL</br>
+</br>
+    ${userCommandPrefix}l</br>
+    ${userCommandPrefix}l6</br>
+    ${userCommandPrefix}leave</br>
+    -remove yourself from the 6 mans queue</br>
+</br>
+    ${userCommandPrefix}l4</br>
+    -remove yourself from the 4 mans queue</br>
+</br>
+    ${userCommandPrefix}l2</br>
+    -remove yourself from the 2 mans queue</br>
+</br>
+
+</br>
+    ${userCommandPrefix}lb</br>
+    ${userCommandPrefix}leaderboard</br>
+    -display leaderboard URL</br>
+</br>
+    ${userCommandPrefix}matches</br>
+    -show ongoing matches</br>
+</br>
+    ${userCommandPrefix}q</br>
+    ${userCommandPrefix}q6</br>
+    ${userCommandPrefix}queue6</br>
+    ${userCommandPrefix}queue</br>
+    -add yourself to the 6 mans queue</br>
+</br>
+    ${userCommandPrefix}q4</br>
+    ${userCommandPrefix}queue4</br>
+    -add yourself to the 4 mans queue</br>
+</br>
+    ${userCommandPrefix}q2</br>
+    ${userCommandPrefix}queue2</br>
+    -add yourself to the 2 mans queue</br>
+</br>
+    ${userCommandPrefix}r</br>
+    ${userCommandPrefix}random</br>
+    -vote for random teams</br>
+</br>
+    ${userCommandPrefix}report [match ID] <w|l|win|loss></br>
+    -report the result of your match</br>
+    -optionally include match ID to report the result of a previous match</br>
+</br>
+    ${userCommandPrefix}set</br>
+    -set user command prefix</br>
+</br>
+    ${userCommandPrefix}s</br>
+    ${userCommandPrefix}status</br>
+    -show the queue status</br>
+</br>
+    ${userCommandPrefix}undo <match ID></br>
+    -undo a previously reported result for a match</br>
+</body>
+</html>`;
+    res.send(helpString);
 }
 
 function showLeaderboard(req, res, sort) {
@@ -368,6 +454,10 @@ const express = require('express');
 const app = express();
 const port = config.leaderboardPort;
 
+app.get('/help', (req, res) => {
+    showHelp(req, res);
+});
+
 app.get('/leaderboard', (req, res) => {
     // do any request validation here
 
@@ -401,8 +491,6 @@ app.get('/leaderboard', (req, res) => {
 });
 
 app.get('/player', (req, res) => {
-
-
     if(req.query.q != undefined) {
         let qId = req.query.q.replace('"','').replace("'", "").replace('?', '').replace(':', '');
         const query = {_id: qId};
@@ -429,6 +517,8 @@ app.get('/player', (req, res) => {
     }
 
 });
+
+
 
 
 
