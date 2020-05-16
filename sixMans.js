@@ -16,14 +16,7 @@ TODO:
     -everyone starts at 1000 mmr
     -no one loses mmr?
 
--add 'balanced' team creation mode in addition to random and captains
-    -try to add people to teams so that they are 'even'
-        -rank players 1,2,3,4,5,6
-            -team 1 gets players: 1,4,5
-            -team 2 gets players: 2,3,6
-
 -use config file for handling constants such as the channel IDs
-
 
 */
 
@@ -71,9 +64,9 @@ function handleDataBaseError(dberr, logMessage, exitProcess) {
 
 }
 
-
-
-
+const CAPTAIN_VOTE = 1;
+const RANDOM_VOTE = 2;
+const BALANCED_VOTE = 3;
 
 var userCommandPrefix = '.';
 
@@ -87,7 +80,6 @@ var nextMatchId = 0;
 const MAX_MATCH_ID = Number.MAX_SAFE_INTEGER; // match id will wrap to 0 upon reaching this value, so this is also the max concurrent matches
 var matches = {}; // map match id to match object
 var membersInMatches = {}; // map user id to match id
-
 
 try{
     const mongoOptions = { useUnifiedTopology: true };
@@ -138,6 +130,11 @@ module.exports = {
         let command = msg.content.split(' ')[0]; // let the command be the first word in the user message
         //console.log(`received user command '${s}'`);
         switch(command) {
+            case 'b':
+            case 'balanced':
+            voteForBalancedTeams(msg);
+            break;
+
             case 'c':
             case 'captains':
             voteForCaptains(msg);
@@ -270,9 +267,10 @@ Users in queue: ${queueFourString()}\n`;
         // now we need to make teams
         createMatch(msg, config.FOUR_MANS_TEAM_SIZE);
         s += `Match is ready to start.
+Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
 Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
 Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
-The match will be canceled if neither option receives 3 votes after 2 minutes have elapsed.`;
+The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 2 votes.`;
     }
     msg.channel.send(s);
 }
@@ -313,9 +311,10 @@ Users in queue: ${queueString()}\n`;
         // now we need to make teams
         createMatch(msg, config.SIX_MANS_TEAM_SIZE);
         s += `Match is ready to start.
+Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
 Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
 Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
-The match will be canceled if neither option receives 3 votes after 2 minutes have elapsed.`;
+The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
     }
     msg.channel.send(s);
 }
@@ -364,7 +363,6 @@ Users in queue: ${queueTwoString()}\n`;
     }
     else
         msg.channel.send(s);
-
 }
 
 function addUserToQueue(msg) {
@@ -385,19 +383,50 @@ function addUserToQueue(msg) {
 
 function cancelMatch(msg) {
     // TODO
-    // -use match id to cancel match instead and check permissions (admin only command?)
-    // OR
-    // -allow for players to vote to cancel match?
     let match = getUserMatch(msg.member.id);
     if(match == null)
         return; // user is not in a match, ignore
 
-    match.canceled = true;
-    endMatch(msg, match);
+
+    if(match.addVoteToCancel(msg.member.id)) {
+        let s = `>>> Match ID ${match.id} votes to cancel: ${match.cancelVotes}\n`;
+        switch(match.teamSize) {
+            case config.SIX_MANS_TEAM_SIZE:
+                // require 3 players
+                if(match.cancelVotes > config.SIX_MANS_MIN_VOTE_COUNT) {
+                    s += "Canceling match.";
+                    match.canceled = true;
+                    endMatch(msg, match);
+                }
+                break;
+
+            case config.FOUR_MANS_TEAM_SIZE:
+                // require 2 players
+                if(match.cancelVotes > config.FOUR_MANS_MIN_VOTE_COUNT) {
+                    s += "Canceling match.";
+                    match.canceled = true;
+                    endMatch(msg, match);
+                }
+                break;
+            default:
+                // 1v1 match, require both players
+                if(match.cancelVotes == 2) {
+                    s += "Canceling match.";
+                    match.canceled = true;
+                    endMatch(msg, match);
+                }
+        }
+        msg.channel.send(s);
+    }
+
+
 }
 
 function clearQueue(msg) {
-    // TODO check user permissions (must be admin?)
+    if((msg.member.roles.cache.has(config.SIX_MANS_ROLE)) === 0) {
+        // user does not have sufficient permissions for this command
+        return;
+    }
     let args = msg.content.split(' ');
     if(args.length === 1) {
         // clearing 6 mans queue
@@ -450,11 +479,11 @@ function createMatch(msg, teamSize) {
             queueTwo = [];
             break;
         default:
+            // ??? match type
     }
 
     for (const user of match.players) {
         membersInMatches[user.id] = match.id;
-
 
         // add a document for this player if it does not already exist
         let query = {_id: user.id};
@@ -499,9 +528,22 @@ function createMatch(msg, teamSize) {
     // start 2 minute timer to allow players to vote on teams
     match.timer = setTimeout (() => {
         // handle timeout here
-        msg.channel.send(`>>> Match ID ${match.id} has timed out. Canceling match.`);
-        match.canceled = true;
-        endMatch(msg, match);
+        msg.channel.send(`>>> Voting for Match ID ${match.id} has timed out.`);
+        let highestVote = match.getHighestVote();
+        switch(highestVote) {
+            case RANDOM_VOTE:
+                msg.channel.send(`>>> Match ID ${match.id} creating random teams.`);
+                startRandomMatch(msg, match);
+                break;
+            case CAPTAIN_VOTE:
+                msg.channel.send(`>>> Match ID ${match.id} creating captains to pick teams.`);
+                startCaptainsMatch(msg, match);
+                break;
+            default:
+                // balanced match
+                msg.channel.send(`>>> Match ID ${match.id} creating balanced teams.`);
+                startBalancedMatch(msg, match);
+        }
     }, 120000);
     return match;
 }
@@ -557,58 +599,7 @@ function decrementMemberMatchWins(member) {
 }
 
 function displayHelp(msg) {
-    const helpString = `Valid commands are:
-${userCommandPrefix}c
-${userCommandPrefix}captains
--vote for captains
-
-${userCommandPrefix}cancel
--cancel the match you are currently in
-
-${userCommandPrefix}clear
--clear out the current queue
-
-${userCommandPrefix}help
--display this text
-
-${userCommandPrefix}l
-${userCommandPrefix}leave
--remove yourself from the queue
-
-${userCommandPrefix}lb
-${userCommandPrefix}leaderboard
--show the leaderboard
-
-${userCommandPrefix}matches
--show ongoing matches
-
-${userCommandPrefix}q
-${userCommandPrefix}queue
--add yourself to the 6 mans queue
-
-${userCommandPrefix}q4
-${userCommandPrefix}queue4
--add yourself to the 4 mans queue
-
-${userCommandPrefix}q6
-${userCommandPrefix}queue6
--add yourself to the 6 mans queue
-
-${userCommandPrefix}r
-${userCommandPrefix}random
--vote for random teams
-
-${userCommandPrefix}report [match ID] <win|loss>
--report the result of your match
--optionally include match ID to report the result of a previous match
-
-${userCommandPrefix}s
-${userCommandPrefix}status
--show the queue status
-
-${userCommandPrefix}undo <match ID>
--undo a previously reported result for a match`;
-    msg.channel.send(`${helpString}`);
+    msg.channel.send(`Please see help at http://${config.serverIP}:${config.leaderboardPort}/help`).then().catch(console.error);
 }
 
 function endMatch(msg, match) {
@@ -730,15 +721,19 @@ function messageCaptain(omsg, match, captainIndex) {
                 match.playerPickList.splice(n, 1);
                 // message the other captain if needed
                 if(match.playerPickList.length > 1) {
+                    /*
+                    // choose which captain goes next based on game mode
                     if(match.teamSize == config.SIX_MANS_TEAM_SIZE) {
-                        // captain 0 gets first pick
-                        // captain 1 gets second and third picks
-                        messageCaptain(omsg, match, 1);
+                        // captain 1 gets first pick
+                        // captain 0 gets second and third picks
+                        messageCaptain(omsg, match, 0);
                     }
                     else {
                         messageCaptain(omsg, match, (captainIndex + 1) % 2);
                     }
-
+                    */
+                    // flip flop between captains
+                    messageCaptain(omsg, match, (captainIndex + 1) % 2);
                 }
                 else if(match.playerPickList.length === 1) {
                     // add the last player to the other captain's team
@@ -773,7 +768,7 @@ function messageCaptains(msg, match) {
 Captain for team 1: <@${match.captains[0].id}>
 Captain for team 2: <@${match.captains[1].id}>
 Captains now have 2 minutes to pick teams.`);
-    messageCaptain(msg, match, 0);
+    messageCaptain(msg, match, 1);
 }
 
 async function orderPlayersByRank(players) {
@@ -1005,7 +1000,7 @@ function reportMatchResult(msg) {
                             case 1:
                                 // found exactly 1 match
                                 match = result[0];
-                                if(!match.reported) {
+                                if(!match.reported && !match.canceled) {
                                     // need to report match results
 
                                     for (m of match.teams[0]) {
@@ -1015,7 +1010,6 @@ function reportMatchResult(msg) {
                                         m.displayName = '';
                                     }
 
-                                    ////////////////////////////////////////
                                     // find which team this user was on
                                     let winningTeam = -1;
                                     var teamId = getMemberTeamId(match, msg.member.id);
@@ -1210,6 +1204,10 @@ function reportTeamWon(team) {
 }
 
 function setCommand(msg) {
+    if((msg.member.roles.cache.has(config.SIX_MANS_ROLE)) === 0) {
+        // user does not have sufficient permissions for this command
+        return;
+    }
     let args = msg.content.split(' ');
     if(args.length < 2)
         return;
@@ -1298,6 +1296,21 @@ function showQueueStatus(msg) {
 
 }
 
+async function startBalancedMatch(msg, match) {
+    match.createBalancedteams(await orderPlayersByRank(match.players));
+    startMatch(msg, match);
+}
+
+async function startCaptainsMatch(msg, match) {
+    match.createCaptains(await orderPlayersByRank(match.players));
+    messageCaptains(msg, match);
+}
+
+function startRandomMatch(msg, match) {
+    match.createRandomteams();
+    startMatch(msg, match);
+}
+
 function startMatch(msg, match) {
     match.start();
     let matchMsg = `>>> Match ID ${match.id}; teams have been created.
@@ -1350,7 +1363,10 @@ Password: ${match.password}`;
 
 function undoMatchResult(msg) {
     // command format undo <match id>
-    //
+    if((msg.member.roles.cache.has(config.SIX_MANS_ROLE)) === 0) {
+        // user does not have sufficient permissions for this command
+        return;
+    }
     let args = msg.content.split(' '); // let the command be the first word in the user message
     if(args.length != 2) {
         return;
@@ -1427,6 +1443,26 @@ function userMentionString(list) {
     return s;
 }
 
+async function voteForBalancedTeams(msg) {
+    let match = getUserMatch(msg.member.id);
+    if (match === null) {
+        return;
+    }
+
+    // this user is in a match
+    if(!match.isVotingAllowed()) {
+        return;
+    }
+
+    if(match.addVoteForBalanced(msg.member.id)) {
+        msg.channel.send(match.getVotesString());
+        if((match.teamSize === config.SIX_MANS_TEAM_SIZE && match.balancedVotes > config.SIX_MANS_MIN_VOTE_COUNT) || (match.teamSize === config.FOUR_MANS_TEAM_SIZE && match.balancedVotes > config.FOUR_MANS_MIN_VOTE_COUNT)) {
+            // the requisite vote amount has been reached, create balanced teams
+            startBalancedMatch(msg, match);
+        }
+    }
+}
+
 async function voteForCaptains(msg) {
     let match = getUserMatch(msg.member.id);
     if (match === null) {
@@ -1434,17 +1470,15 @@ async function voteForCaptains(msg) {
     }
 
     // this user is in a match
-    if(match.started || match.pickingTeams) {
+    if(!match.isVotingAllowed()) {
         return;
     }
 
     if(match.addVoteForCaptains(msg.member.id)) {
-        msg.channel.send(`>>> Votes for random: ${match.randomVotes}
-Votes for captains: ${match.captainVotes}`);
+        msg.channel.send(match.getVotesString());
         if((match.teamSize === config.SIX_MANS_TEAM_SIZE && match.captainVotes > config.SIX_MANS_MIN_VOTE_COUNT) || (match.teamSize === config.FOUR_MANS_TEAM_SIZE && match.captainVotes > config.FOUR_MANS_MIN_VOTE_COUNT)) {
             // the requisite vote amount has been reached, create captains to select teams
-            match.createCaptains(await orderPlayersByRank(match.players));
-            messageCaptains(msg, match);
+            startCaptainsMatch(msg, match);
         }
     }
 
@@ -1458,17 +1492,15 @@ function voteForRandomTeams(msg) {
     }
 
     // this user is in a match
-    if(match.started || match.pickingTeams) {
+    if(!match.isVotingAllowed()) {
         return;
     }
 
     if(match.addVoteForRandom(msg.member.id)) {
-        msg.channel.send(`>>> Votes for random: ${match.randomVotes}
-Votes for captains: ${match.captainVotes}`);
+        msg.channel.send(match.getVotesString());
         if((match.teamSize === config.SIX_MANS_TEAM_SIZE && match.randomVotes > config.SIX_MANS_MIN_VOTE_COUNT) || (match.teamSize === config.FOUR_MANS_TEAM_SIZE && match.randomVotes > config.FOUR_MANS_MIN_VOTE_COUNT)) {
             // the requisite vote amount has been reached, create random teams
-            match.createRandomteams();
-            startMatch(msg, match);
+            startRandomMatch(msg, match);
         }
     }
 
