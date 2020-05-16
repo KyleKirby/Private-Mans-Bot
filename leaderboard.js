@@ -153,7 +153,10 @@ function showHelp(req, res) {
     -optionally include match ID to report the result of a previous match</br>
 </br>
     ${userCommandPrefix}set</br>
-    -set user command prefix</br>
+    -used to set various configurations</br>
+    -valid command are:</br>
+        set prefix &lt;new prefix&gt;</br>
+        set stats @&lt;player&gt; &lt;wins&gt; &lt;losses&gt;</br>
 </br>
     ${userCommandPrefix}s</br>
     ${userCommandPrefix}status</br>
