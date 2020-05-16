@@ -42,9 +42,9 @@ TODO:
 const config = require('./config.js');
 const Match = require('./match');
 const Player = require('./player');
+
 const mongo = require('mongodb');
 const fs = require('fs');
-
 var MongoClient = require('mongodb').MongoClient;
 var url = "mongodb://localhost:27017/";
 
@@ -83,16 +83,7 @@ function handleDataBaseError(dberr, logMessage, exitProcess) {
 
 }
 
-try{
-    const mongoOptions = { useUnifiedTopology: true };
-    MongoClient.connect(url, mongoOptions, function(err, mdb) {
-      if (err) throw err;
-      db = mdb.db('sixMans');
-    });
-}
-catch(err) {
-    handleDataBaseError(err, 'Error opening mongo db\n', true);
-}
+
 
 
 
@@ -104,11 +95,49 @@ var queueFour = []; // 4 mans queue
 
 var queueTwo = []; // 2 mans queue
 
-var nextmatchId = 0;
-const MAX_MATCH_ID = 100000; // match id will wrap to 0 upon reaching this value, so this is also the max concurrent matches
+var nextMatchId = 0;
+const MAX_MATCH_ID = Number.MAX_SAFE_INTEGER; // match id will wrap to 0 upon reaching this value, so this is also the max concurrent matches
 var matches = {}; // map match id to match object
-var matchArhive = {}; // map matchid id to match object
 var membersInMatches = {}; // map user id to match id
+
+
+try{
+    const mongoOptions = { useUnifiedTopology: true };
+    MongoClient.connect(url, mongoOptions, function(err, mdb) {
+      if (err) throw err;
+      db = mdb.db('sixMans');
+
+      // load config
+      db.collection('config').findOne({}, (err, dbConf) => {
+          if(err) {
+              handleDataBaseError(err, `Error loading config from mongoDB\n`, false);
+          }
+          else {
+              if(dbConf != null) {
+                  // load config
+                  if('commandPrefix' in dbConf) {
+                      userCommandPrefix = dbConf.commandPrefix;
+                  }
+                  if('nextMatchId' in dbConf) {
+                      nextMatchId = dbConf.nextMatchId;
+                  }
+              }
+              else {
+                  // write current config and use that from now on
+                  db.collection('config').insertOne({commandPrefix: userCommandPrefix, nextMatchId: nextMatchId}, (err, res) => {
+                      if(err) {
+                          handleDataBaseError(err, `Error updating config in mongoDB\n`, false);
+                      }
+                  });
+              }
+          }
+      });
+    });
+}
+catch(err) {
+    handleDataBaseError(err, 'Error opening mongo db\n', true);
+}
+
 
 
 module.exports = {
@@ -116,6 +145,7 @@ module.exports = {
         if(msg.channel.type === 'dm')
             // for now, ignore commands from DM channel
             return;
+        msg.content = msg.content.toLowerCase();
         //msg.channel.send(`received user command '${msg.content}'`);
         let command = msg.content.split(' ')[0]; // let the command be the first word in the user message
         //console.log(`received user command '${s}'`);
@@ -418,30 +448,65 @@ function createMatch(msg, teamSize) {
     var match;
     switch(teamSize) {
         case config.SIX_MANS_TEAM_SIZE:
-            match = Match(queue, nextmatchId, teamSize);
+            match = Match(queue, nextMatchId, teamSize);
             queue = [];
             break;
 
         case config.FOUR_MANS_TEAM_SIZE:
-            match = Match(queueFour, nextmatchId, teamSize);
+            match = Match(queueFour, nextMatchId, teamSize);
             queueFour = [];
             break;
 
         case config.TWO_MANS_TEAM_SIZE:
-            match = Match(queueTwo, nextmatchId, teamSize);
+            match = Match(queueTwo, nextMatchId, teamSize);
             queueTwo = [];
             break;
-
         default:
-
     }
 
-    for (user of match.players) {
+    for (const user of match.players) {
         membersInMatches[user.id] = match.id;
+
+
+        // add a document for this player if it does not already exist
+        let query = {_id: user.id};
+        db.collection('players').findOne(query, (err, result) => {
+            if(err) {
+                handleDataBaseError(err, `Error finding member ID ${user.id} in players collection\n`, false);
+            }
+            else {
+                if(result == null) {
+                    // did not find player in database, need to insert document for that player in the players collection
+                    let o = Player(user, {losses: 0, wins: 0});
+                    db.collection('players').insertOne(o, (err, res) => {
+                        if(err) {
+                            handleDataBaseError(err, 'Error inserting player\n', false);
+                        }
+                    });
+                }
+            }
+        });
     }
 
     matches[match.id] = match;
-    nextmatchId = (nextmatchId + 1) % MAX_MATCH_ID;
+    nextMatchId = (nextMatchId + 1) % MAX_MATCH_ID;
+
+    // TODO change to findAndModify
+    db.collection('config').findOne({}, (err, dbConf) => {
+        if(err) {
+            handleDataBaseError(err, `Error loading config from mongoDB\n`, false);
+        }
+        else {
+            if(dbConf != null) {
+                // need to update config
+                db.collection('config').updateOne({}, {$set: {nextMatchId: nextMatchId}}, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, `Error updating config in mongoDB\n`, false);
+                    }
+                });
+            }
+        }
+    });
 
     // start 2 minute timer to allow players to vote on teams
     match.timer = setTimeout (() => {
@@ -466,10 +531,10 @@ function decrementMatchWins(team) {
 }
 
 function decrementMemberMatchLosses(member) {
-    const query = {_id: member.id};
+    const query = {_id: member};
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
+            handleDataBaseError(err, `Error finding member ID ${member} in players collection\n`, false);
         }
         else {
             if(result != null) {
@@ -485,10 +550,10 @@ function decrementMemberMatchLosses(member) {
 }
 
 function decrementMemberMatchWins(member) {
-    const query = {_id: member.id};
+    const query = {_id: member};
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
+            handleDataBaseError(err, `Error finding member ID ${member} in players collection\n`, false);
         }
         else {
             if(result != null) {
@@ -562,7 +627,7 @@ function endMatch(msg, match) {
     match.ended = true;
 
     if(match.started) {
-
+        // if the match started, then voice channels were created
         msg.client.channels.fetch(config.QUEUE_CHANNEL).then(async queueChan => {
             for(p of match.teams[0]) {
                 // move back to queue channel if player is still in team voice channel
@@ -582,7 +647,33 @@ function endMatch(msg, match) {
         .catch(console.error);
     }
 
-    matchArhive[match.id] = match;
+    db.collection('matches').insertOne(match.getMongoObject(), (err, res) => {
+        if(err) {
+            handleDataBaseError(err, 'Error inserting match in match collection\n', false);
+        }
+    });
+
+    for(p of match.players) {
+        let query = {_id: p.id};
+        db.collection('players').findOne(query, (err, result) => {
+            if(err) {
+                handleDataBaseError(err, 'Error finding player in players collection\n', false);
+            }
+            else {
+                if(result != null) {
+                    // found player in db
+                    result.matches[match.timestamp] = match.id; // add match timestamp/ID to player matches
+                    db.collection('players').updateOne(query, {$set: {matches: result.matches}}, (err, res) => {
+                        if(err) {
+                            handleDataBaseError(err, 'Error updating player in players collection\n', false);
+                        }
+                    });
+                }
+                // take no action here if player was not found (unexpected)
+            }
+        });
+    }
+
     delete matches[match.id];
     for(player of match.players) {
         delete membersInMatches[player.id];
@@ -590,10 +681,10 @@ function endMatch(msg, match) {
 
 }
 
-function getMemberTeamId(match, member) {
+function getMemberTeamId(match, memberId) {
     for(let i = 0; i < 2; i++)
         for(m of match.teams[i]) {
-            if(m.id === member.id)
+            if(m.id === memberId)
                 return i;
         }
     return -1; // member not in either team
@@ -611,6 +702,10 @@ function getUserMatch(userId) {
 }
 
 function messageCaptain(omsg, match, captainIndex) {
+    if(match.ended) {
+        // must have timed out
+        return;
+    }
     const filter = m => !(Number(m.content).isNaN);
     const options = {max: 1, time: 60000, errors: ["time"]};
 
@@ -621,13 +716,11 @@ function messageCaptain(omsg, match, captainIndex) {
         s += `${i+1}.  ${match.playerPickList[i].player.displayName}\n`;
     }
 
-
-
     match.captains[captainIndex].send(s).then(dmMessage => {
         dmMessage.channel.awaitMessages(filter, options)
         .then(collected => {
             // process message from user here
-            if(collected.size === 0){
+            if(collected.size === 0 && !match.ended){
                 // did not receive message from captain
                 // for now, resend the message...
                 messageCaptain(omsg, match, captainIndex);
@@ -635,7 +728,7 @@ function messageCaptain(omsg, match, captainIndex) {
             }
             var msg = collected.first();
             var n = Number(msg.content);
-            if(n < 1 || n > match.playerPickList.length) {
+            if(n < 1 || n > match.playerPickList.length && !match.ended) {
                 // player did not enter a valid number, resend message...
                 messageCaptain(omsg, match, captainIndex);
                 return;
@@ -648,8 +741,17 @@ function messageCaptain(omsg, match, captainIndex) {
                 // remove the player from the playerPickList
                 match.playerPickList.splice(n, 1);
                 // message the other captain if needed
-                if(match.playerPickList.length > 1)
-                    messageCaptain(omsg, match, (captainIndex + 1) % 2);
+                if(match.playerPickList.length > 1) {
+                    if(match.teamSize == config.SIX_MANS_TEAM_SIZE) {
+                        // captain 0 gets first pick
+                        // captain 1 gets second and third picks
+                        messageCaptain(omsg, match, 1);
+                    }
+                    else {
+                        messageCaptain(omsg, match, (captainIndex + 1) % 2);
+                    }
+
+                }
                 else if(match.playerPickList.length === 1) {
                     // add the last player to the other captain's team
                     match.teams[(captainIndex + 1) % 2].push(match.playerPickList[0].player);
@@ -683,7 +785,7 @@ function messageCaptains(msg, match) {
 Captain for team 1: <@${match.captains[0].id}>
 Captain for team 2: <@${match.captains[1].id}>
 Captains now have 2 minutes to pick teams.`);
-    messageCaptain(msg, match, 1);
+    messageCaptain(msg, match, 0);
 }
 
 async function orderPlayersByRank(players) {
@@ -836,7 +938,8 @@ function removeUserFromQueue(msg) {
 function reportMatchResult(msg) {
     // remove match from matches object and remove users from membersInMatches object
 
-    var match, matchId;
+    var match = null;
+    var matchId = -1;
 
     let args = msg.content.split(' ');
     if(args.length === 1) {
@@ -853,40 +956,158 @@ function reportMatchResult(msg) {
                 // this user is in a match
                 matchId = membersInMatches[msg.member.id];
                 match = matches[matchId];
-
-
+            }
+            else {
+                return;
             }
             break;
 
         default:
             // check if valid match id
-            let n = Number(arg);
-            if(n.isNaN) {
+            matchId = Number(arg);
+            if(matchId.isNaN) {
                 // invalid parameter
                 return;
             }
 
             // valid number, check if this is a valid match id
-            if(n in matches && matches[n].isUserInMatch(msg.member.id)) {
+            if(matchId in matches && matches[matchId].isUserInMatch(msg.member.id)) {
                 // this is a valid match id, the match has not be reported yet, and the user is in the match
-                matchId = n;
-                match = matches[n];
-            }
-            else if(n in matchArhive && matchArhive[n].isUserInMatch(msg.member.id)) {
-                // this game is archived
-                matchId = n;
-                match = matchArhive[n];
+                match = matches[matchId];
             }
             else {
-                return;
-            }
+                // check if there is a second parameter (this is required)
+                if(args.length === 3) {
+                    arg = args[2];
+                }
+                else {
+                    // insufficient command parameters
+                    return;
+                }
 
-            // check if there is a second parameter (this is required)
-            if(args.length === 3) {
-                arg = args[2];
-            }
-            else {
-                // insufficient command parameters
+                let userReportedOutcome = -1;
+
+                const USER_REPORTED_WIN = 0;
+                const USER_REPORTED_LOSS = 1;
+
+                switch(arg) {
+                    case 'win':
+                    case 'w':
+                        userReportedOutcome = USER_REPORTED_WIN;
+                        break;
+                    case 'loss':
+                    case 'l':
+                        userReportedOutcome = USER_REPORTED_LOSS;
+                        break;
+                    default:
+                        // invalid arg given
+                        return;
+                }
+
+                // see if this was a previously reported match that had its result undone in mongoDB
+                const query = {id: matchId};
+                try{
+                    db.collection('matches').find(query).toArray((err, result) => {
+                        if(err) throw err;
+                        switch(result.length) {
+                            case 0:
+                                // did not find any matches
+                                msg.channel.send(`>>> Did not find any matches with match ID ${matchId}.`);
+                                break;
+                            case 1:
+                                // found exactly 1 match
+                                match = result[0];
+                                if(!match.reported) {
+                                    // need to report match results
+
+                                    for (m of match.teams[0]) {
+                                        m.displayName = '';
+                                    }
+                                    for (m of match.teams[1]) {
+                                        m.displayName = '';
+                                    }
+
+                                    ////////////////////////////////////////
+                                    // find which team this user was on
+                                    let winningTeam = -1;
+                                    var teamId = getMemberTeamId(match, msg.member.id);
+                                    var team0String, team1String;
+
+                                    if(userReportedOutcome === USER_REPORTED_WIN){
+                                        // this user's team won the match
+                                        if(teamId === 0) {
+                                            team0String = 'won';
+                                            team1String = 'lost'
+                                            reportTeamWon(match.teams[0]);
+                                            reportTeamLost(match.teams[1]);
+                                            winningTeam = 0;
+                                        }
+                                        else {
+                                            team0String = 'lost';
+                                            team1String = 'won'
+                                            reportTeamLost(match.teams[0]);
+                                            reportTeamWon(match.teams[1]);
+                                            winningTeam = 1;
+                                        }
+                                    }
+                                    else if(userReportedOutcome === USER_REPORTED_LOSS){
+                                        // this user's team lost the match
+                                        if(teamId === 0) {
+                                            team0String = 'lost';
+                                            team1String = 'won'
+                                            reportTeamLost(match.teams[0]);
+                                            reportTeamWon(match.teams[1]);
+                                            winningTeam = 1;
+                                        }
+                                        else {
+                                            team0String = 'won';
+                                            team1String = 'lost'
+                                            reportTeamWon(match.teams[0]);
+                                            reportTeamLost(match.teams[1]);
+                                            winningTeam = 0;
+                                        }
+                                    }
+                                    else {
+                                        msg.channel.send(`>>> Invalid command parameter "${arg}". Valid "report" parameters are "win" or "loss".`);
+                                        return;
+                                    }
+
+                                    try{
+                                        const queryUpdate = {id: match.id, timestamp: match.timestamp};
+                                        const newValues = {$set: {winningTeam: winningTeam, reported: true}};
+                                        db.collection('matches').updateOne(queryUpdate, newValues, (err, res) => {
+                                            if(err)
+                                                throw err;
+                                            else {
+                                                msg.channel.send(`>>> Match ID ${matchId} result:
+Team 1 ${team0String}: ${userMentionString(match.teams[0])}
+Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
+                                            }
+
+                                        });
+                                    }
+                                    catch(err) {
+                                        handleDataBaseError(err, `Error updating match ID ${matchId} in matches collection\n`, false);
+                                        msg.channel.send(`>>> An error occured while reporting match ID ${matchId}.`);
+                                    }
+
+                                }
+                                else {
+                                    msg.channel.send(`>>> Match ID ${matchId} has already been reported.`);
+                                }
+                                break;
+                            default:
+                                // found multiple matches, TODO
+                                // this can be handled by opening a DM with the user and having them select a match
+                                // may implement this later
+                                msg.channel.send(`>>> Error: found multiple matches for match ID ${matchId}. Tell a developer to fix this.`);
+                        }
+                    });
+                }
+                catch(err) {
+                    handleDataBaseError(err, `Error finding match ID ${matchId} in matches collection\n`, false);
+                    msg.channel.send(`>>> An error occured while searching for match ID ${matchId}.`);
+                }
                 return;
             }
     }
@@ -897,8 +1118,8 @@ function reportMatchResult(msg) {
     }
 
     // find which team this user was on
-    var teamId = getMemberTeamId(match, msg.member);
-    var win = false;
+
+    var teamId = getMemberTeamId(match, msg.member.id);
     var team0String, team1String;
 
     if(arg === 'win'){
@@ -917,7 +1138,6 @@ function reportMatchResult(msg) {
             reportTeamWon(match.teams[1]);
             match.winningTeam = 1;
         }
-        win = true;
     }
     else if(arg === 'loss'){
         // this user's team lost the match
@@ -946,27 +1166,18 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
 
     match.reported = true;
 
-    if(!match.ended)
-        endMatch(msg, match);
+    endMatch(msg, match);
 }
 
 function reportMemberLost(member) {
     const query = {_id: member.id};
+    // TODO change to findAndModify
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
             handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
         }
         else {
-            if(result == null) {
-                // did not find player in database, need to insert document for that player in the players collection
-                let o = Player(member, {losses: 1, wins: 0});
-                db.collection('players').insertOne(o, (err, res) => {
-                    if(err) {
-                        handleDataBaseError(err, 'Error inserting player lost\n', false);
-                    }
-                });
-            }
-            else {
+            if(result != null) {
                 // found player in database, need to update document for that player in the players collection
                 db.collection('players').updateOne(query, {$inc: {losses: 1}}, (err, res) => {
                     if(err) {
@@ -980,22 +1191,13 @@ function reportMemberLost(member) {
 
 function reportMemberWon(member) {
     const query = {_id: member.id};
-
+    // TODO change to findAndModify
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
             handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
         }
         else {
-            if(result == null) {
-                // did not find player in database, need to insert document for that player in the players collection
-                let o = Player(member, {losses: 0, wins: 1});
-                db.collection('players').insertOne(o, (err, res) => {
-                    if(err) {
-                        handleDataBaseError(err, 'Error inserting player won\n', false);
-                    }
-                });
-            }
-            else {
+            if(result != null) {
                 // found player in database, need to update document for that player in the players collection
                 db.collection('players').updateOne(query, {$inc: {wins: 1}}, (err, res) => {
                     if(err) {
@@ -1028,7 +1230,31 @@ function setCommand(msg) {
         if(args.length < 3)
             return;
         userCommandPrefix = args[2];
-        // TODO put this in a config file/database so it is persistent between reloads
+
+        db.collection('config').findOne({}, (err, dbConf) => {
+            if(err) {
+                handleDataBaseError(err, `Error loading config from mongoDB\n`, false);
+            }
+            else {
+                if(dbConf == null) {
+                    // no config stored yet, insert config
+                    db.collection('config').insertOne({commandPrefix: userCommandPrefix, nextMatchId: nextMatchId}, (err, res) => {
+                        if(err) {
+                            handleDataBaseError(err, `Error updating config in mongoDB\n`, false);
+                        }
+                    });
+                }
+                else {
+                    // need to update config
+                    db.collection('config').updateOne({}, {$set: {commandPrefix: userCommandPrefix}}, (err, res) => {
+                        if(err) {
+                            handleDataBaseError(err, `Error updating config in mongoDB\n`, false);
+                        }
+                    });
+                }
+
+            }
+        });
     }
 }
 
@@ -1149,18 +1375,56 @@ function undoMatchResult(msg) {
     }
 
     // valid number, check if this is a valid match id
-    if(matchId in matchArhive) {
-        // this game is archived
-        let match = matchArhive[matchId];
-        if(match.reported) {
-            decrementMatchLosses(match.teams[(match.winningTeam + 1) % 2]);
-            decrementMatchWins(match.teams[match.winningTeam]);
-            match.winningTeam = -1;
-            match.reported = false;
-            msg.channel.send(`>>> Undid match result for match ID ${matchId}.`);
-        }
+    const query = {id: matchId};
+    try{
+        db.collection('matches').find(query).toArray((err, result) => {
+            if(err) throw err;
+            switch(result.length) {
+                case 0:
+                    // did not find any matches
+                    msg.channel.send(`>>> Did not find any matches with match ID ${matchId}.`);
+                    break;
+                case 1:
+                    // found exactly 1 match, undo this match
+                    let match = result[0];
+                    if(match.reported) {
+                        decrementMatchLosses(match.teams[(match.winningTeam + 1) % 2]);
+                        decrementMatchWins(match.teams[match.winningTeam]);
+                        match.winningTeam = -1;
+                        match.reported = false;
+                        try{
+                            const queryUpdate = {id: match.id, timestamp: match.timestamp};
+                            const newValues = {$set: {winningTeam: -1, reported: false}};
+                            db.collection('matches').updateOne(queryUpdate, newValues, (err, res) => {
+                                if(err)
+                                    throw err;
+                                else
+                                    msg.channel.send(`>>> Undid match result for match ID ${matchId}.`);
+                            })
+                        }
+                        catch(err) {
+                            handleDataBaseError(err, `Error updating match ID ${matchId} in matches collection\n`, false);
+                            msg.channel.send(`>>> An error occured while updating match ID ${matchId}.`);
+                        }
 
+                    }
+                    else {
+                        msg.channel.send(`>>> Match ID ${matchId} has not been reported.`);
+                    }
+                    break;
+                default:
+                    // found multiple matches, TODO
+                    // this can be handled by opening a DM with the user and having them select a match
+                    // may implement this later
+                    msg.channel.send(`>>> Error: found multiple matches for match ID ${matchId}. Tell a developer to fix this.`);
+            }
+        });
     }
+    catch(err) {
+        handleDataBaseError(err, `Error finding match ID ${matchId} in matches collection\n`, false);
+        msg.channel.send(`>>> An error occured while searching for match ID ${matchId}.`);
+    }
+
 }
 
 function userMentionString(list) {
