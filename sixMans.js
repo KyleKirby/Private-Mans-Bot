@@ -1,10 +1,6 @@
 /*
 TODO:
 
--allow variable amounts of teams to compensate for times when there are not enough people
-    -4 mans, 6 mans
-    -have separate queues?
-
 -track more stats?
     -goals?
     -user reporting?
@@ -12,15 +8,9 @@ TODO:
 -more commands for admin control
     -set player stats (wins/losses)
 
--set timeout on voting, picking teams
-
 -require users to 'ready' up upon the queue popping?
     -avoids users being stuck in a game with someone afk
     -would need a timer for this
-
--store old matches in a log that is easily accessible to allow for 'undoing' match results
-    -currently have matches which have ended in the 'matchArchive' JSON object
-        -currently no way to view the matches in this object
 
 -use 'mmr' to rank people
     -everyone starts at 1000 mmr
@@ -32,10 +22,8 @@ TODO:
             -team 1 gets players: 1,4,5
             -team 2 gets players: 2,3,6
 
--use config file for handling constants such as userCommandPrefix and the channel IDs
+-use config file for handling constants such as the channel IDs
 
--in function startMatch(), check if a user is in voice chat before trying to move them
-    -currently just moving without checking and logging the error that is received
 
 */
 
