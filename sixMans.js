@@ -1376,11 +1376,18 @@ function startRandomMatch(msg, match) {
     startMatch(msg, match);
 }
 
-function startMatch(msg, match) {
+async function startMatch(msg, match) {
     match.start();
+
+    const playersByRank = await orderPlayersByRank(match.players); // have the highest ranked player create the private match
+
+    const matchCreator = playersByRank[0].player;
+
     let matchMsg = `>>> Match ID ${match.id}; teams have been created.
 Team 1: ${userMentionString(match.teams[0])}
 Team 2: ${userMentionString(match.teams[1])}
+
+<@${matchCreator.id}> will create the private match.
 Name: ${match.name}
 Password: ${match.password}`;
     msg.channel.send(matchMsg);
