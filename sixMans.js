@@ -854,7 +854,7 @@ Captains now have 2 minutes to pick teams.`);
     messageCaptain(msg, match, 1);
 }
 
-async function orderPlayersByRank(players) {
+async function orderPlayersByRank(players, teamSize) {
     var playerList = [];
 
     // first retrieve player stats
@@ -881,7 +881,17 @@ async function orderPlayersByRank(players) {
         }
     }
 
-    playerList.sort(rankPlayers);
+    switch(teamSize) {
+        case config.FOUR_MANS_TEAM_SIZE:
+            playerList.sort(rankPlayersFour);
+            break;
+        case config.TWO_MANS_TEAM_SIZE:
+            playerList.sort(rankPlayersTwo);
+            break;
+        default:
+            playerList.sort(rankPlayersSix);
+    }
+
     return playerList;
 }
 
@@ -897,11 +907,36 @@ function queueTwoString() {
     return userMentionString(queueTwo);
 }
 
-function rankPlayers(p1,p2) {
-    if ((p1.wins - p1.losses) < (p2.wins - p2.losses)) {
+function rankPlayersFour(p1,p2) {
+    const matchType = Player.FOUR_MANS_PROPERTY;
+    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
         return 1;
     }
-    else if ((p1.wins - p1.losses) > (p2.wins - p2.losses)){
+    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
+        return -1;
+    }
+    else
+        return 0;
+}
+
+function rankPlayersSix(p1,p2) {
+    const matchType = Player.SIX_MANS_PROPERTY;
+    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
+        return 1;
+    }
+    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
+        return -1;
+    }
+    else
+        return 0;
+}
+
+function rankPlayersTwo(p1,p2) {
+    const matchType = Player.TWO_MANS_PROPERTY;
+    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
+        return 1;
+    }
+    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
         return -1;
     }
     else
@@ -1513,12 +1548,12 @@ function showQueueStatus(msg) {
 }
 
 async function startBalancedMatch(msg, match) {
-    match.createBalancedteams(await orderPlayersByRank(match.players));
+    match.createBalancedteams(await orderPlayersByRank(match.players, match.teamSize));
     startMatch(msg, match);
 }
 
 async function startCaptainsMatch(msg, match) {
-    match.createCaptains(await orderPlayersByRank(match.players));
+    match.createCaptains(await orderPlayersByRank(match.players, match.teamSize));
     messageCaptains(msg, match);
 }
 
@@ -1530,7 +1565,7 @@ function startRandomMatch(msg, match) {
 async function startMatch(msg, match) {
     match.start();
 
-    const playersByRank = await orderPlayersByRank(match.players); // have the highest ranked player create the private match
+    const playersByRank = await orderPlayersByRank(match.players, match.teamSize); // have the highest ranked player create the private match
 
     const matchCreator = playersByRank[0].player;
 
