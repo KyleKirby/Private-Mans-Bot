@@ -88,7 +88,7 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         default:
             lbHeaderText = 'Six Mans';
     }
-    let lbStr = `<h2>${lbHeaderText}</h2></br><table><tr><th>` + rank + `<a href='/leaderboard?sort=rank'>&#8659;</a> </th><th>` + name + ` <a href='/leaderboard?sort=name'>&#8659;</a> </th><th>` + wins + ` <a href='/leaderboard?sort=wins'>&#8659;</a> </th><th>` + losses + ` <a href='/leaderboard?sort=losses'>&#8659;</a> </th><th>` + winsMinusLosses + ` <a href='/leaderboard?sort=winsminuslosses'>&#8659;</a> </th><th>` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th></tr>`;
+    let lbStr = `<h2 name='${nextMatchType}'>${lbHeaderText}</h2></br><table><tr><th>` + rank + `<a href='/leaderboard?sort=rank#${nextMatchType}'>&#8659;</a> </th><th>` + name + ` <a href='/leaderboard?sort=name#${nextMatchType}'>&#8659;</a> </th><th>` + wins + ` <a href='/leaderboard?sort=wins#${nextMatchType}'>&#8659;</a> </th><th>` + losses + ` <a href='/leaderboard?sort=losses#${nextMatchType}'>&#8659;</a> </th><th>` + winsMinusLosses + ` <a href='/leaderboard?sort=winsminuslosses#${nextMatchType}'>&#8659;</a> </th><th>` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th></tr>`;
     for(entry of players) {
         rank = entry.rank.toString();
         name = `<a href='/player?q=${entry._id}'>${entry.name}</a>`;
@@ -283,6 +283,9 @@ tr:nth-child(even) {
 </style>
 </head>
 <body>
+<a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
+<a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
+<a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
 `;
             lbStr += addLeaderboardTable(result, sort, Player.SIX_MANS_PROPERTY);
             lbStr += addLeaderboardTable(result, sort, Player.FOUR_MANS_PROPERTY);
