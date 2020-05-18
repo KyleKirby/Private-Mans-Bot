@@ -2,7 +2,9 @@ const mongo = require('mongodb');
 const fs = require('fs');
 const config = require('./config');
 
-var sixMans = require('./sixMans');
+const sixMans = require('./sixMans');
+
+const Player = require('./player');
 
 
 var MongoClient = require('mongodb').MongoClient;
@@ -16,6 +18,8 @@ function handleExit() {
     }
 }
 
+var matchType = Player.SIX_MANS_PROPERTY;
+
 const SORT_BY_RANK = 0;
 const SORT_BY_NAME = 1;
 const SORT_BY_WINS = 2;
@@ -24,6 +28,86 @@ const SORT_BY_WINS_MINUS_LOSSES = 4;
 const SORT_BY_WIN_PERCENTAGE = 5;
 
 process.on('exit', handleExit);
+
+function addLeaderboardTable(players, sort, nextMatchType) {
+
+    var rank = '#';
+    var name = 'Name';
+    var wins = 'Wins';
+    var losses = 'Losses';
+    var winsMinusLosses = '+/-';
+    var rate = '%';
+
+    // set the match type before sorting
+    matchType = nextMatchType;
+
+    players.sort(rankPlayers);
+
+    let count = 1;
+    for(entry of players) {
+        entry.rank = count;
+        count++;
+    }
+
+    /*
+    const SORT_BY_RANK = 0;
+    const SORT_BY_NAME = 1;
+    const SORT_BY_WINS = 2;
+    const SORT_BY_LOSSES = 3;
+    const SORT_BY_WINS_MINUS_LOSSES = 4;
+    const SORT_BY_WIN_PERCENTAGE = 5;
+    */
+
+    switch(sort){
+        case SORT_BY_NAME:
+            players.sort(sortPlayersBynames);
+            break;
+        case SORT_BY_WINS:
+            players.sort(sortPlayersByWins);
+            break;
+        case SORT_BY_LOSSES:
+            players.sort(sortPlayersByLosses);
+            break;
+        case SORT_BY_WINS_MINUS_LOSSES:
+            players.sort(sortPlayersByWinsMinusLosses);
+            break;
+        case SORT_BY_WIN_PERCENTAGE:
+            players.sort(sortPlayersByWinpercentage);
+            break;
+    }
+
+
+    let lbHeaderText;
+    switch(nextMatchType) {
+        case Player.FOUR_MANS_PROPERTY:
+            lbHeaderText = 'Four Mans';
+            break;
+        case Player.TWO_MANS_PROPERTY:
+            lbHeaderText = 'Two Mans';
+            break;
+        default:
+            lbHeaderText = 'Six Mans';
+    }
+    let lbStr = `<h2>${lbHeaderText}</h2></br><table><tr><th>` + rank + `<a href='/leaderboard?sort=rank'>&#8659;</a> </th><th>` + name + ` <a href='/leaderboard?sort=name'>&#8659;</a> </th><th>` + wins + ` <a href='/leaderboard?sort=wins'>&#8659;</a> </th><th>` + losses + ` <a href='/leaderboard?sort=losses'>&#8659;</a> </th><th>` + winsMinusLosses + ` <a href='/leaderboard?sort=winsminuslosses'>&#8659;</a> </th><th>` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th></tr>`;
+    for(entry of players) {
+        rank = entry.rank.toString();
+        name = `<a href='/player?q=${entry._id}'>${entry.name}</a>`;
+        wins = entry.stats[matchType].wins.toString();
+        losses = entry.stats[matchType].losses.toString();
+        winsMinusLosses = (entry.stats[matchType].wins - entry.stats[matchType].losses).toString();
+        if((entry.stats[matchType].wins + entry.stats[matchType].losses) === 0) {
+            // from undo?
+            rate = '0.00%';
+        }
+        else {
+            rate = (((entry.stats[matchType].wins / (entry.stats[matchType].wins + entry.stats[matchType].losses)) * 100).toFixed(2) + '%');
+        }
+        lbStr += '<tr><td>' + rank + '</td><td>' + name + '</td><td>' + wins + '</td><td>' + losses + '</td><td>' + winsMinusLosses + '</td><td>' + rate + '</td></tr>';
+    }
+    lbStr += `</table></br>`;
+
+    return lbStr;
+}
 
 function handleDataBaseError(dberr, logMessage, exitProcess) {
     console.error(dberr);
@@ -72,10 +156,10 @@ async function getPlayerSync(playerId) {
 
 // default player ranking
 function rankPlayers(p1,p2) {
-    if ((p1.wins - p1.losses) < (p2.wins - p2.losses)) {
+    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
         return 1;
     }
-    else if ((p1.wins - p1.losses) > (p2.wins - p2.losses)){
+    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
         return -1;
     }
     else
@@ -156,7 +240,8 @@ function showHelp(req, res) {
     -used to set various configurations</br>
     -valid command are:</br>
         set prefix &lt;new prefix&gt;</br>
-        set stats @&lt;player&gt; &lt;wins&gt; &lt;losses&gt;</br>
+        set stats @&lt;player&gt; &lt;match type&gt; &lt;wins&gt; &lt;losses&gt;</br>
+            Valid match types are 'six', 'four', or 'two'</br>
 </br>
     ${userCommandPrefix}s</br>
     ${userCommandPrefix}status</br>
@@ -198,75 +283,13 @@ tr:nth-child(even) {
 </style>
 </head>
 <body>
-<table>`;
-            const rankPadding = 5;
-            const namePadding = 40;
-            const numberPadding = 10;
-            const padding = ' ';
-            var rank = '#'.padEnd(rankPadding, padding);
-            var name = 'Name'.padEnd(namePadding, padding);
-            var wins = 'Wins'.padEnd(numberPadding, padding);
-            var losses = 'Losses'.padEnd(numberPadding, padding);
-            var winsMinusLosses = '+/-'.padEnd(numberPadding, padding);
-            var rate = '%'.padEnd(numberPadding, padding);
+`;
+            lbStr += addLeaderboardTable(result, sort, Player.SIX_MANS_PROPERTY);
+            lbStr += addLeaderboardTable(result, sort, Player.FOUR_MANS_PROPERTY);
+            lbStr += addLeaderboardTable(result, sort, Player.TWO_MANS_PROPERTY);
 
-            var players = result;
-
-            players.sort(rankPlayers);
-
-            let count = 1;
-            for(entry of players) {
-                entry.rank = count;
-                count++;
-            }
-
-            /*
-            const SORT_BY_RANK = 0;
-            const SORT_BY_NAME = 1;
-            const SORT_BY_WINS = 2;
-            const SORT_BY_LOSSES = 3;
-            const SORT_BY_WINS_MINUS_LOSSES = 4;
-            const SORT_BY_WIN_PERCENTAGE = 5;
-            */
-            switch(sort){
-                case SORT_BY_NAME:
-                    players.sort(sortPlayersBynames);
-                    break;
-                case SORT_BY_WINS:
-                    players.sort(sortPlayersByWins);
-                    break;
-                case SORT_BY_LOSSES:
-                    players.sort(sortPlayersByLosses);
-                    break;
-                case SORT_BY_WINS_MINUS_LOSSES:
-                    players.sort(sortPlayersByWinsMinusLosses);
-                    break;
-                case SORT_BY_WIN_PERCENTAGE:
-                    players.sort(sortPlayersByWinpercentage);
-                    break;
-            }
-
-
-
-            lbStr += `<tr><th>` + rank + `<a href='/leaderboard?sort=rank'>&#8659;</a> </th><th>` + name + ` <a href='/leaderboard?sort=name'>&#8659;</a> </th><th>` + wins + ` <a href='/leaderboard?sort=wins'>&#8659;</a> </th><th>` + losses + ` <a href='/leaderboard?sort=losses'>&#8659;</a> </th><th>` + winsMinusLosses + ` <a href='/leaderboard?sort=winsminuslosses'>&#8659;</a> </th><th>` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th></tr>`;
-            for(entry of players) {
-                rank = entry.rank.toString();
-                name = `<a href='/player?q=${entry._id}'>${entry.name}</a>`;
-                wins = entry.wins.toString();
-                losses = entry.losses.toString();
-                winsMinusLosses = (entry.wins - entry.losses).toString();
-                if((entry.wins + entry.losses) === 0) {
-                    // from undo?
-                    rate = '0.00%';
-                }
-                else {
-                    rate = (((entry.wins / (entry.wins + entry.losses)) * 100).toFixed(2) + '%');
-                }
-                lbStr += '<tr><td>' + rank + '</td><td>' + name + '</td><td>' + wins + '</td><td>' + losses + '</td><td>' + winsMinusLosses + '</td><td>' + rate + '</td></tr>';
-            }
         }
-        lbStr+=`</table>
-</body>
+        lbStr += `</body>
 </html>`;
         res.send(lbStr);
     });
@@ -394,10 +417,10 @@ tr:nth-child(even) {
 }
 
 function sortPlayersByLosses(p1,p2) {
-    if (p1.losses < p2.losses) {
+    if (p1.stats[matchType].losses < p2.stats[matchType].losses) {
         return 1;
     }
-    else if (p1.losses > p2.losses) {
+    else if (p1.stats[matchType].losses > p2.stats[matchType].losses) {
         return -1;
     }
     else
@@ -417,18 +440,18 @@ function sortPlayersByName(p1,p2) {
 
 function sortPlayersByWinpercentage(p1,p2) {
     let p1Rate, p2Rate;
-    if((p1.wins + p1.losses) === 0) {
+    if((p1.stats[matchType].wins + p1.stats[matchType].losses) === 0) {
         p1Rate = 0;
     }
     else {
-        p1Rate = p1.wins / (p1.wins + p1.losses);
+        p1Rate = p1.stats[matchType].wins / (p1.stats[matchType].wins + p1.stats[matchType].losses);
     }
 
-    if((p2.wins + p2.losses) === 0) {
+    if((p2.stats[matchType].wins + p2.stats[matchType].losses) === 0) {
         p2Rate = 0;
     }
     else {
-        p2Rate = p2.wins / (p2.wins + p2.losses);
+        p2Rate = p2.stats[matchType].wins / (p2.stats[matchType].wins + p2.stats[matchType].losses);
     }
 
     if (p1Rate < p2Rate) {
@@ -442,10 +465,10 @@ function sortPlayersByWinpercentage(p1,p2) {
 }
 
 function sortPlayersByWins(p1,p2) {
-    if (p1.wins < p2.wins) {
+    if (p1.stats[matchType].wins < p2.stats[matchType].wins) {
         return 1;
     }
-    else if (p1.wins > p2.wins) {
+    else if (p1.stats[matchType].wins > p2.stats[matchType].wins) {
         return -1;
     }
     else

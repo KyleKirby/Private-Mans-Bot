@@ -18,6 +18,10 @@ TODO:
 
 -use config file for handling constants such as the channel IDs
 
+-separate match results for six mans, four mans, two mans
+    -use separate collections
+    -separate wins/losses per player by six, four, two mans
+
 */
 
 const config = require('./config.js');
@@ -494,7 +498,7 @@ function createMatch(msg, teamSize) {
             else {
                 if(result == null) {
                     // did not find player in database, need to insert document for that player in the players collection
-                    let o = Player(user, {losses: 0, wins: 0});
+                    let o = Player.Player(user);
                     db.collection('players').insertOne(o, (err, res) => {
                         if(err) {
                             handleDataBaseError(err, 'Error inserting player\n', false);
@@ -548,19 +552,19 @@ function createMatch(msg, teamSize) {
     return match;
 }
 
-function decrementMatchLosses(team) {
+function decrementMatchLosses(team, matchType) {
     for (m of team) {
-        decrementMemberMatchLosses(m);
+        decrementMemberMatchLosses(m, matchType);
     }
 }
 
-function decrementMatchWins(team) {
+function decrementMatchWins(team, matchType) {
     for (m of team) {
-        decrementMemberMatchWins(m);
+        decrementMemberMatchWins(m, matchType);
     }
 }
 
-function decrementMemberMatchLosses(member) {
+function decrementMemberMatchLosses(member, matchType) {
     const query = {_id: member};
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
@@ -569,7 +573,9 @@ function decrementMemberMatchLosses(member) {
         else {
             if(result != null) {
                 // found player in database, need to update document for that player in the players collection
-                db.collection('players').updateOne(query, {$inc: {losses: -1}}, (err, res) => {
+                let update = {};
+                update[`stats.${matchType}.losses`] = -1;
+                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
                     if(err) {
                         handleDataBaseError(err, 'Error undoing player loss\n', false);
                     }
@@ -579,7 +585,7 @@ function decrementMemberMatchLosses(member) {
     });
 }
 
-function decrementMemberMatchWins(member) {
+function decrementMemberMatchWins(member, matchType) {
     const query = {_id: member};
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
@@ -588,7 +594,9 @@ function decrementMemberMatchWins(member) {
         else {
             if(result != null) {
                 // found player in database, need to update document for that player in the players collection
-                db.collection('players').updateOne(query, {$inc: {wins: -1}}, (err, res) => {
+                let update = {};
+                update[`stats.${matchType}.wins`] = -1;
+                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
                     if(err) {
                         handleDataBaseError(err, 'Error undoing player win\n', false);
                     }
@@ -641,8 +649,30 @@ function endMatch(msg, match) {
             else {
                 if(result != null) {
                     // found player in db
-                    result.matches[match.timestamp] = match.id; // add match timestamp/ID to player matches
-                    db.collection('players').updateOne(query, {$set: {matches: result.matches}}, (err, res) => {
+                    var matchType;
+                    switch(match.teamSize) {
+                        /*
+                        case config.SIX_MANS_TEAM_SIZE:
+                            matchType = Player.SIX_MANS_PROPERTY;
+                            break;
+                        */
+                        case config.FOUR_MANS_TEAM_SIZE:
+                            matchType = Player.FOUR_MANS_PROPERTY;
+                            break;
+
+                        case config.TWO_MANS_TEAM_SIZE:
+                            matchType = Player.TWO_MANS_PROPERTY;
+                            break;
+                        default:
+                            matchType = Player.SIX_MANS_PROPERTY;
+                    }
+
+                    result.stats[matchType].matches[match.timestamp] = match.id; // add match timestamp/ID to player matches
+
+                    let newMatchObject = {};
+                    newMatchObject[`stats.${matchType}.matches`] = result.stats[matchType].matches;
+
+                    db.collection('players').updateOne(query, {$set: newMatchObject}, (err, res) => {
                         if(err) {
                             handleDataBaseError(err, 'Error updating player in players collection\n', false);
                         }
@@ -667,6 +697,59 @@ function getMemberTeamId(match, memberId) {
                 return i;
         }
     return -1; // member not in either team
+}
+
+function getNextStatObject(args, argIter) {
+    // expecting args in the form of <match type> <wins> <losses>
+    // argIter should be at <match type>
+
+    // first make sure there are enough args
+    if(args.length < argIter + 3) {
+        // not enough args
+        return null;
+    }
+
+    let stats = {};
+    let key = '';
+
+
+    // first get the match type
+    let nextMatchType = args[argIter];
+    argIter++;
+    switch(nextMatchType) {
+        case 'six':
+            // need to set six mans stats
+            key = 'six';
+            break;
+
+        case 'four':
+            // need to set four mans stats
+            key = 'four';
+            break;
+
+        case 'two':
+            // need to set two mans stats
+            key = 'two';
+            break;
+        default:
+            // unrecognized key
+            return null;
+    }
+
+    let wins = Number(args[argIter]);
+    argIter++;
+
+    let losses = Number(args[argIter]);
+    argIter++;
+
+    if(wins.isNaN || losses.isNaN) {
+        // invalid input
+        return null;
+    }
+
+    stats[key] = {wins: wins, losses: losses};
+
+    return stats;
 }
 
 function getUserMatch(userId) {
@@ -780,7 +863,7 @@ async function orderPlayersByRank(players) {
             let result = await db.collection('players').findOne({_id: p.id});
             if(result == null) {
                 // player does not exist in players collection
-                let player = Player(p);
+                let player = Player.Player(p);
                 player.player = p;
                 playerList.push(player);
             }
@@ -792,7 +875,7 @@ async function orderPlayersByRank(players) {
         }
         catch (err) {
             handleDataBaseError(err, `Error finding player in players collection\n`, false);
-            let player = Player(p);
+            let player = Player.Player(p);
             player.player = p;
             playerList.push(player);
         }
@@ -923,6 +1006,7 @@ function reportMatchResult(msg) {
 
     var match = null;
     var matchId = -1;
+    var matchType;
 
     let args = msg.content.split(' ');
     if(args.length === 1) {
@@ -1000,6 +1084,24 @@ function reportMatchResult(msg) {
                             case 1:
                                 // found exactly 1 match
                                 match = result[0];
+
+                                switch(match.teamSize) {
+                                    /*
+                                    case config.SIX_MANS_TEAM_SIZE:
+                                        matchType = Player.SIX_MANS_PROPERTY;
+                                        break;
+                                    */
+                                    case config.FOUR_MANS_TEAM_SIZE:
+                                        matchType = Player.FOUR_MANS_PROPERTY;
+                                        break;
+
+                                    case config.TWO_MANS_TEAM_SIZE:
+                                        matchType = Player.TWO_MANS_PROPERTY;
+                                        break;
+                                    default:
+                                        matchType = Player.SIX_MANS_PROPERTY;
+                                }
+
                                 if(!match.reported && !match.canceled) {
                                     // need to report match results
 
@@ -1020,15 +1122,15 @@ function reportMatchResult(msg) {
                                         if(teamId === 0) {
                                             team0String = 'won';
                                             team1String = 'lost'
-                                            reportTeamWon(match.teams[0]);
-                                            reportTeamLost(match.teams[1]);
+                                            reportTeamWon(match.teams[0], matchType);
+                                            reportTeamLost(match.teams[1], matchType);
                                             winningTeam = 0;
                                         }
                                         else {
                                             team0String = 'lost';
                                             team1String = 'won'
-                                            reportTeamLost(match.teams[0]);
-                                            reportTeamWon(match.teams[1]);
+                                            reportTeamLost(match.teams[0], matchType);
+                                            reportTeamWon(match.teams[1], matchType);
                                             winningTeam = 1;
                                         }
                                     }
@@ -1037,15 +1139,15 @@ function reportMatchResult(msg) {
                                         if(teamId === 0) {
                                             team0String = 'lost';
                                             team1String = 'won'
-                                            reportTeamLost(match.teams[0]);
-                                            reportTeamWon(match.teams[1]);
+                                            reportTeamLost(match.teams[0], matchType);
+                                            reportTeamWon(match.teams[1], matchType);
                                             winningTeam = 1;
                                         }
                                         else {
                                             team0String = 'won';
                                             team1String = 'lost'
-                                            reportTeamWon(match.teams[0]);
-                                            reportTeamLost(match.teams[1]);
+                                            reportTeamWon(match.teams[0], matchType);
+                                            reportTeamLost(match.teams[1], matchType);
                                             winningTeam = 0;
                                         }
                                     }
@@ -1099,8 +1201,26 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
         return;
     }
 
-    // find which team this user was on
 
+    switch(match.teamSize) {
+        /*
+        case config.SIX_MANS_TEAM_SIZE:
+            matchType = Player.SIX_MANS_PROPERTY;
+            break;
+        */
+        case config.FOUR_MANS_TEAM_SIZE:
+            matchType = Player.FOUR_MANS_PROPERTY;
+            break;
+
+        case config.TWO_MANS_TEAM_SIZE:
+            matchType = Player.TWO_MANS_PROPERTY;
+            break;
+
+        default:
+            matchType = Player.SIX_MANS_PROPERTY;
+    }
+
+    // find which team this user was on
     var teamId = getMemberTeamId(match, msg.member.id);
     var team0String, team1String;
 
@@ -1109,15 +1229,15 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
         if(teamId === 0) {
             team0String = 'won';
             team1String = 'lost'
-            reportTeamWon(match.teams[0]);
-            reportTeamLost(match.teams[1]);
+            reportTeamWon(match.teams[0], matchType);
+            reportTeamLost(match.teams[1], matchType);
             match.winningTeam = 0;
         }
         else {
             team0String = 'lost';
             team1String = 'won'
-            reportTeamLost(match.teams[0]);
-            reportTeamWon(match.teams[1]);
+            reportTeamLost(match.teams[0], matchType);
+            reportTeamWon(match.teams[1], matchType);
             match.winningTeam = 1;
         }
     }
@@ -1126,15 +1246,15 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
         if(teamId === 0) {
             team0String = 'lost';
             team1String = 'won'
-            reportTeamLost(match.teams[0]);
-            reportTeamWon(match.teams[1]);
+            reportTeamLost(match.teams[0], matchType);
+            reportTeamWon(match.teams[1], matchType);
             match.winningTeam = 1;
         }
         else {
             team0String = 'won';
             team1String = 'lost'
-            reportTeamWon(match.teams[0]);
-            reportTeamLost(match.teams[1]);
+            reportTeamWon(match.teams[0], matchType);
+            reportTeamLost(match.teams[1], matchType);
             match.winningTeam = 0;
         }
     }
@@ -1151,7 +1271,7 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
     endMatch(msg, match);
 }
 
-function reportMemberLost(member) {
+function reportMemberLost(member, matchType) {
     const query = {_id: member.id};
     // TODO change to findAndModify
     db.collection('players').findOne(query, (err, result) => {
@@ -1161,7 +1281,11 @@ function reportMemberLost(member) {
         else {
             if(result != null) {
                 // found player in database, need to update document for that player in the players collection
-                db.collection('players').updateOne(query, {$inc: {losses: 1}}, (err, res) => {
+
+                let update = {};
+                update[`stats.${matchType}.losses`] = 1;
+
+                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
                     if(err) {
                         handleDataBaseError(err, 'Error updating player lost\n', false);
                     }
@@ -1171,7 +1295,7 @@ function reportMemberLost(member) {
     });
 }
 
-function reportMemberWon(member) {
+function reportMemberWon(member, matchType) {
     const query = {_id: member.id};
     // TODO change to findAndModify
     db.collection('players').findOne(query, (err, result) => {
@@ -1181,7 +1305,11 @@ function reportMemberWon(member) {
         else {
             if(result != null) {
                 // found player in database, need to update document for that player in the players collection
-                db.collection('players').updateOne(query, {$inc: {wins: 1}}, (err, res) => {
+
+                let update = {};
+                update[`stats.${matchType}.wins`] = 1;
+
+                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
                     if(err) {
                         handleDataBaseError(err, 'Error updating player won\n', false);
                     }
@@ -1191,15 +1319,15 @@ function reportMemberWon(member) {
     });
 }
 
-function reportTeamLost(team) {
+function reportTeamLost(team, matchType) {
     for (m of team) {
-        reportMemberLost(m);
+        reportMemberLost(m, matchType);
     }
 }
 
-function reportTeamWon(team) {
+function reportTeamWon(team, matchType) {
     for (m of team) {
-        reportMemberWon(m);
+        reportMemberWon(m, matchType);
     }
 }
 
@@ -1244,8 +1372,9 @@ function setCommand(msg) {
             break;
         case 'stats':
             // set player stats
-            if(args.length < argIter + 2)
-                return;
+
+            let needToUpdateStats = false;
+            let newStats = {};
 
             let player = msg.mentions.users.first();
             if(!player) {
@@ -1253,16 +1382,32 @@ function setCommand(msg) {
             }
             argIter++;
 
-            let wins = Number(args[argIter]);
-            argIter++;
+            while(true) {
+                let nextStatSet = getNextStatObject(args, argIter);
+                argIter += 3;
+                if(nextStatSet == null) {
+                    break;
+                }
+                else {
+                    for(let key in nextStatSet) {
+                        // copy the stats
+                        newStats[key] = nextStatSet[key];
+                    }
+                    needToUpdateStats = true;
+                }
+            }
 
-            let losses = Number(args[argIter]);
+
+            if(!needToUpdateStats) {
+                // invalid command parameters given
+                return;
+            }
+
 
             let member = {displayName: player.username, id: player.id };
             //console.log(`Name: ${player.username} ID: ${playerId} stats: wins ${wins} losses ${losses}`);
 
             const query = {_id: player.id};
-            const newStats = {wins: wins, losses: losses, matches: {}};
 
             try{
                 db.collection('players').findOne(query, (err, result) => {
@@ -1270,8 +1415,7 @@ function setCommand(msg) {
 
                     if(result == null) {
                         // there is no document for this player, need to insert a new one with these stats
-                        //const player = Player();
-                        let o = Player(member, newStats);
+                        let o = Player.Player(member, newStats);
                         db.collection('players').insertOne(o, (err, res) => {
                             if(err) {
                                 handleDataBaseError(err, 'Error inserting player\n', false);
@@ -1284,7 +1428,14 @@ function setCommand(msg) {
                     }
                     else {
                         // just need to update this player
-                        const update = {$set: newStats};
+                        let updateStats = {};
+                        // want to set field in embedded document
+                        for(key in newStats) {
+                            // key is 'six', 'four', or 'two'
+                            updateStats['stats.'+key+'.wins'] = newStats[key].wins;
+                            updateStats['stats.'+key+'.losses'] = newStats[key].losses;
+                        }
+                        const update = {$set: updateStats};
                         db.collection('players').updateOne(query, update, (err, res) => {
                             if(err) {
                                 handleDataBaseError(err, 'Error inserting player\n', false);
@@ -1464,8 +1615,26 @@ function undoMatchResult(msg) {
                     // found exactly 1 match, undo this match
                     let match = result[0];
                     if(match.reported) {
-                        decrementMatchLosses(match.teams[(match.winningTeam + 1) % 2]);
-                        decrementMatchWins(match.teams[match.winningTeam]);
+                        var matchType;
+                        switch(match.teamSize) {
+                            /*
+                            case config.SIX_MANS_TEAM_SIZE:
+                                matchType = Player.SIX_MANS_PROPERTY;
+                                break;
+                            */
+                            case config.FOUR_MANS_TEAM_SIZE:
+                                matchType = Player.FOUR_MANS_PROPERTY;
+                                break;
+
+                            case config.TWO_MANS_TEAM_SIZE:
+                                matchType = Player.TWO_MANS_PROPERTY;
+                                break;
+                            default:
+                                matchType = Player.SIX_MANS_PROPERTY;
+                        }
+
+                        decrementMatchLosses(match.teams[(match.winningTeam + 1) % 2], matchType);
+                        decrementMatchWins(match.teams[match.winningTeam], matchType);
                         match.winningTeam = -1;
                         match.reported = false;
                         try{
