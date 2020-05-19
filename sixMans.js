@@ -565,10 +565,10 @@ function decrementMatchWins(team, matchType) {
 }
 
 function decrementMemberMatchLosses(member, matchType) {
-    const query = {_id: member};
+    const query = {_id: member.id};
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member} in players collection\n`, false);
+            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
         }
         else {
             if(result != null) {
@@ -586,10 +586,10 @@ function decrementMemberMatchLosses(member, matchType) {
 }
 
 function decrementMemberMatchWins(member, matchType) {
-    const query = {_id: member};
+    const query = {_id: member.id};
     db.collection('players').findOne(query, (err, result) => {
         if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member} in players collection\n`, false);
+            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
         }
         else {
             if(result != null) {
