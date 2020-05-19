@@ -216,8 +216,8 @@ function showHelp(req, res) {
 </br>
     ${userCommandPrefix}q</br>
     ${userCommandPrefix}q6</br>
-    ${userCommandPrefix}queue6</br>
     ${userCommandPrefix}queue</br>
+    ${userCommandPrefix}queue6</br>
     -add yourself to the 6 mans queue</br>
 </br>
     ${userCommandPrefix}q4</br>
@@ -232,7 +232,7 @@ function showHelp(req, res) {
     ${userCommandPrefix}random</br>
     -vote for random teams</br>
 </br>
-    ${userCommandPrefix}report [match ID] <w|l|win|loss></br>
+    ${userCommandPrefix}report [match ID] &lt; w | l | win | loss &gt;</br>
     -report the result of your match</br>
     -optionally include match ID to report the result of a previous match</br>
 </br>
@@ -398,9 +398,10 @@ tr:nth-child(even) {
                 // erase last comma
                 team1String = team1String.replace(/,$/,"");
             }
+            const date = new Date(match.timestamp);
             pStr += `<tr>
     <td>
-        ${match.timestamp}
+        ${date.getUTCMonth()+1}/${date.getUTCDate()}/${date.getUTCFullYear()} ${date.getUTCHours()}:${date.getUTCMinutes()} UTC
     </td>
     <td>
         ${match.id}
