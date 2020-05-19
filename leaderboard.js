@@ -399,6 +399,19 @@ tr:nth-child(even) {
                 team1String = team1String.replace(/,$/,"");
             }
             const date = new Date(match.timestamp);
+            let winningTeamStr;
+            if(match.winningTeam < 0) {
+                // match canceled or match result was undone
+                if(match.canceled) {
+                    winningTeamStr = 'Canceled';
+                }
+                else {
+                    winningTeamStr = 'Not reported';
+                }
+            }
+            else {
+                winningTeamStr = `Team ${match.winningTeam+1}`;
+            }
             pStr += `<tr>
     <td>
         ${date.getUTCMonth()+1}/${date.getUTCDate()}/${date.getUTCFullYear()} ${date.getUTCHours()}:${date.getUTCMinutes()} UTC
@@ -413,7 +426,7 @@ tr:nth-child(even) {
         ${team1String}
     </td>
     <td>
-        Team ${match.winningTeam+1}
+        ${winningTeamStr}
     </td>
 
 </tr>`
