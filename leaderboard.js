@@ -345,8 +345,16 @@ tr:nth-child(even) {
 
     // build query for player matches
     let query = {$or: []};
-    for(timestamp in player.matches) {
-        query.$or.push({timestamp:Number(timestamp), id:player.matches[timestamp]});
+    for(timestamp in player.stats[Player.SIX_MANS_PROPERTY].matches) {
+        query.$or.push({timestamp:Number(timestamp), id:player.stats[Player.SIX_MANS_PROPERTY].matches[timestamp]});
+    }
+
+    for(timestamp in player.stats[Player.FOUR_MANS_PROPERTY].matches) {
+        query.$or.push({timestamp:Number(timestamp), id:player.stats[Player.FOUR_MANS_PROPERTY].matches[timestamp]});
+    }
+
+    for(timestamp in player.stats[Player.TWO_MANS_PROPERTY].matches) {
+        query.$or.push({timestamp:Number(timestamp), id:player.stats[Player.TWO_MANS_PROPERTY].matches[timestamp]});
     }
 
     var matches = [];
