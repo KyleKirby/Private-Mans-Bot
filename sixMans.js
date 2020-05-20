@@ -443,7 +443,7 @@ function clearQueue(msg) {
         }
 
     }
-    else if(args.length === 1 && args[1] === '4') {
+    else if(args.length === 2 && args[1] === '4') {
         // clearing 4 mans queue
         if(queueFour.length > 0) {
             queueFour = [];
@@ -453,7 +453,7 @@ function clearQueue(msg) {
             msg.channel.send(`>>> 4 mans queue is already empty.`);
         }
     }
-    else if(args.length === 1 && args[1] === '2') {
+    else if(args.length === 2 && args[1] === '2') {
         // clearing 4 mans queue
         if(queueTwo.length > 0) {
             queueTwo = [];
