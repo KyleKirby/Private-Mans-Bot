@@ -454,13 +454,37 @@ function clearQueue(msg) {
         }
     }
     else if(args.length === 2 && args[1] === '2') {
-        // clearing 4 mans queue
+        // clearing 2 mans queue
         if(queueTwo.length > 0) {
             queueTwo = [];
             msg.channel.send(`>>> Cleared 2 mans queue.`);
         }
         else {
             msg.channel.send(`>>> 2 mans queue is already empty.`);
+        }
+    }
+    else if(args.length === 2 && args[1] === 'all') {
+        if(queue.length === 0 && queueFour.length === 0 && queueTwo.length === 0) {
+            msg.channel.send(`>>> All queues are already empty.`);
+        }
+        else {
+            let s = '>>> ';
+            // clearing 6 mans queue
+            if(queue.length > 0) {
+                queue = [];
+                s += `Cleared 6 mans queue.\n`;
+            }
+            // clearing 4 mans queue
+            if(queueFour.length > 0) {
+                queueFour = [];
+                s += `Cleared 4 mans queue.\n`;
+            }
+            // clearing 2 mans queue
+            if(queueTwo.length > 0) {
+                queueTwo = [];
+                s += `Cleared 2 mans queue.\n`;
+            }
+            msg.channel.send(s);
         }
     }
 }
