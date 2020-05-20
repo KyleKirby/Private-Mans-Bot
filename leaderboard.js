@@ -172,82 +172,76 @@ function showHelp(req, res) {
 <html>
 <head>
     <style>
+        .cmd {
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     Valid commands are:</br>
 </br>
-    ${userCommandPrefix}b</br>
-    ${userCommandPrefix}balanced</br>
+    <div class="cmd">${userCommandPrefix}b ${userCommandPrefix}balanced</div>
     -vote for balanced teams</br>
 </br>
-    ${userCommandPrefix}c</br>
-    ${userCommandPrefix}captains</br>
+    <div class="cmd">${userCommandPrefix}c ${userCommandPrefix}captains</div>
     -vote for captains</br>
 </br>
-    ${userCommandPrefix}cancel</br>
+    <div class="cmd">${userCommandPrefix}cancel</div>
     -vote to cancel the match you are currently in</br>
 </br>
-    ${userCommandPrefix}clear</br>
+    <span class="cmd">${userCommandPrefix}clear</span> [4 | 2 | all]<br>
     -clear out the current queue</br>
+    -without any additional parameters this will clear the 6 man queue</br>
+    -4 and 2 are optional parameters that specify the 4 man and 2 man queues respectively</br>
+    -all is another optional parameter that will clear all queues</br>
 </br>
-    ${userCommandPrefix}help</br>
+    <div class="cmd">${userCommandPrefix}help</div>
     -display help URL</br>
 </br>
-    ${userCommandPrefix}l</br>
-    ${userCommandPrefix}l6</br>
-    ${userCommandPrefix}leave</br>
+    <div class="cmd">${userCommandPrefix}l ${userCommandPrefix}l6 ${userCommandPrefix}leave</div>
     -remove yourself from the 6 mans queue</br>
 </br>
-    ${userCommandPrefix}l4</br>
+    <div class="cmd">${userCommandPrefix}l4</div>
     -remove yourself from the 4 mans queue</br>
 </br>
-    ${userCommandPrefix}l2</br>
+    <div class="cmd">${userCommandPrefix}l2</div>
     -remove yourself from the 2 mans queue</br>
 </br>
 
 </br>
-    ${userCommandPrefix}lb</br>
-    ${userCommandPrefix}leaderboard</br>
+    <div class="cmd">${userCommandPrefix}lb ${userCommandPrefix}leaderboard</div>
     -display leaderboard URL</br>
 </br>
-    ${userCommandPrefix}matches</br>
+    <div class="cmd">${userCommandPrefix}matches</div>
     -show ongoing matches</br>
 </br>
-    ${userCommandPrefix}q</br>
-    ${userCommandPrefix}q6</br>
-    ${userCommandPrefix}queue</br>
-    ${userCommandPrefix}queue6</br>
+    <div class="cmd">${userCommandPrefix}q ${userCommandPrefix}q6 ${userCommandPrefix}queue ${userCommandPrefix}queue6</div>
     -add yourself to the 6 mans queue</br>
 </br>
-    ${userCommandPrefix}q4</br>
-    ${userCommandPrefix}queue4</br>
+    <div class="cmd">${userCommandPrefix}q4 ${userCommandPrefix}queue4</div>
     -add yourself to the 4 mans queue</br>
 </br>
-    ${userCommandPrefix}q2</br>
-    ${userCommandPrefix}queue2</br>
+    <div class="cmd">${userCommandPrefix}q2 ${userCommandPrefix}queue2</div>
     -add yourself to the 2 mans queue</br>
 </br>
-    ${userCommandPrefix}r</br>
-    ${userCommandPrefix}random</br>
+    <div class="cmd">${userCommandPrefix}r ${userCommandPrefix}random</div>
     -vote for random teams</br>
 </br>
-    ${userCommandPrefix}report [match ID] &lt; w | l | win | loss &gt;</br>
+    <span class="cmd">${userCommandPrefix}report</span> [match ID] &lt; w | l | win | loss &gt;</br>
     -report the result of your match</br>
     -optionally include match ID to report the result of a previous match</br>
 </br>
-    ${userCommandPrefix}set</br>
+    <div class="cmd">${userCommandPrefix}set</div>
     -used to set various configurations</br>
-    -valid command are:</br>
-        set prefix &lt;new prefix&gt;</br>
-        set stats @&lt;player&gt; &lt;match type&gt; &lt;wins&gt; &lt;losses&gt;</br>
+    -valid command parameters are:</br>
+        <span class="cmd">${userCommandPrefix}set prefix</span> &lt;new prefix&gt;</br>
+        <span class="cmd">${userCommandPrefix}set stats</span> @&lt;player&gt; &lt;match type&gt; &lt;wins&gt; &lt;losses&gt;</br>
             Valid match types are 'six', 'four', or 'two'</br>
 </br>
-    ${userCommandPrefix}s</br>
-    ${userCommandPrefix}status</br>
+    <div class="cmd">${userCommandPrefix}s ${userCommandPrefix}status</div>
     -show the queue status</br>
 </br>
-    ${userCommandPrefix}undo <match ID></br>
+    <div class="cmd">${userCommandPrefix}undo <match ID></div>
     -undo a previously reported result for a match</br>
 </body>
 </html>`;
