@@ -5,22 +5,11 @@ TODO:
     -goals?
     -user reporting?
 
--more commands for admin control
-    -set player stats (wins/losses)
-
 -require users to 'ready' up upon the queue popping?
     -avoids users being stuck in a game with someone afk
     -would need a timer for this
 
--use 'mmr' to rank people
-    -everyone starts at 1000 mmr
-    -no one loses mmr?
-
 -use config file for handling constants such as the channel IDs
-
--separate match results for six mans, four mans, two mans
-    -use separate collections
-    -separate wins/losses per player by six, four, two mans
 
 */
 
