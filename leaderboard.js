@@ -185,7 +185,7 @@ function addLeaderboardTable(players, sort, nextMatchType) {
             lbHeaderText = 'Six Mans';
     }
     let lbStr = `
-<h2 name='${nextMatchType}'>
+<h2 id='${nextMatchType}'>
     ${lbHeaderText}
 </h2></br>
 <table>
@@ -269,7 +269,7 @@ async function addMatchTypeTable(player, thisMatchType) {
     icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
 
     let pStr = `
-<h2>
+<h2 id="${thisMatchType}" style="float: left; width: 100%;">
     ${headerText} ${icon}
 </h2>
 <table style="width: 30%">
@@ -599,9 +599,19 @@ ${HEADER_STYLE}
 <body>`;
 
     pStr += `
-<h1>
-    ${player.name}
-</h1>`;
+<span>
+    <h1 style="float:left">
+        ${player.name}
+    </h1>
+    <span style="float:right">
+        <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
+        <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
+        <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
+    </span>
+</span>
+</br>
+</br>
+</br>`;
 
     pStr += await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY);
     pStr += await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY);
