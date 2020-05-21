@@ -74,6 +74,13 @@ Match.prototype.addVoteToCancel = function addVoteToCancel(userId) {
     return true;
 }
 
+Match.prototype.cancel = function cancel(userId) {
+    this.canceled = true;
+    if(this.timer !== null) {
+        clearTimeout(this.timer);
+    }
+}
+
 Match.prototype.createBalancedteams = function createBalancedteams(playersByRank) {
     switch(this.teamSize) {
         case config.SIX_MANS_TEAM_SIZE:

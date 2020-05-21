@@ -385,7 +385,7 @@ function cancelMatch(msg) {
     if(match == null)
         return; // user is not in a match, ignore
 
-
+    let isMatchCanceled = false;
     if(match.addVoteToCancel(msg.member.id)) {
         let s = `>>> Match ID ${match.id} votes to cancel: ${match.cancelVotes}\n`;
         switch(match.teamSize) {
@@ -393,8 +393,7 @@ function cancelMatch(msg) {
                 // require 3 players
                 if(match.cancelVotes > config.SIX_MANS_MIN_VOTE_COUNT) {
                     s += "Canceling match.";
-                    match.canceled = true;
-                    endMatch(msg, match);
+                    isMatchCanceled = true;
                 }
                 break;
 
@@ -402,17 +401,52 @@ function cancelMatch(msg) {
                 // require 2 players
                 if(match.cancelVotes > config.FOUR_MANS_MIN_VOTE_COUNT) {
                     s += "Canceling match.";
-                    match.canceled = true;
-                    endMatch(msg, match);
+                    isMatchCanceled = true;
                 }
                 break;
             default:
                 // 1v1 match, require both players
                 if(match.cancelVotes == 2) {
                     s += "Canceling match.";
-                    match.canceled = true;
-                    endMatch(msg, match);
+                    isMatchCanceled = true;
                 }
+        }
+        if(isMatchCanceled) {
+            match.cancel();
+            endMatch(msg, match);
+
+            // since the match was canceled, the player gained 0 MMR for this match, need update matchRatingChange for this match
+            for(p of match.players) {
+                let query = {_id: p.id};
+
+                var matchType;
+                switch(match.teamSize) {
+                    /*
+                    case config.SIX_MANS_TEAM_SIZE:
+                        matchType = Player.SIX_MANS_PROPERTY;
+                        break;
+                    */
+                    case config.FOUR_MANS_TEAM_SIZE:
+                        matchType = Player.FOUR_MANS_PROPERTY;
+                        break;
+
+                    case config.TWO_MANS_TEAM_SIZE:
+                        matchType = Player.TWO_MANS_PROPERTY;
+                        break;
+                    default:
+                        matchType = Player.SIX_MANS_PROPERTY;
+                }
+
+                let update = {};
+                update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = 0;
+
+                db.collection('players').updateOne(query, {$set: newMatchObject}, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error updating player in players collection\n', false);
+                    }
+                });
+
+            }
         }
         msg.channel.send(s);
     }
