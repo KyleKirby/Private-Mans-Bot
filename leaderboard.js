@@ -617,9 +617,15 @@ ${HEADER_STYLE}
 </br>
 </br>`;
 
-    pStr += await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY);
-    pStr += await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY);
-    pStr += await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY);
+    try {
+        pStr += await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY);
+        pStr += await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY);
+        pStr += await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY);
+    }
+    catch (err) {
+        console.error(err);
+    }
+
 
     pStr += `</body>
 </html>`
