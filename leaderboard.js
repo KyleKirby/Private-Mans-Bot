@@ -185,7 +185,7 @@ function addLeaderboardTable(players, sort, nextMatchType) {
             lbHeaderText = 'Six Mans';
     }
     let lbStr = `
-<h2 id='${nextMatchType}'>
+<h2 id="${nextMatchType}" style="float: left; width: 100%;">
     ${lbHeaderText}
 </h2></br>
 <table>
@@ -573,9 +573,12 @@ ${HEADER_STYLE}
 </style>
 </head>
 <body>
-<a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
-<a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
-<a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
+<span style="float:right">
+    Contents:</br>
+    <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
+    <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
+    <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
+</span>
 `;
             lbStr += addLeaderboardTable(result, sort, Player.SIX_MANS_PROPERTY);
             lbStr += addLeaderboardTable(result, sort, Player.FOUR_MANS_PROPERTY);
@@ -604,6 +607,7 @@ ${HEADER_STYLE}
         ${player.name}
     </h1>
     <span style="float:right">
+        Contents:</br>
         <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
         <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
         <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
