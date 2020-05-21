@@ -1,4 +1,8 @@
+/*
+See https://en.wikipedia.org/wiki/Elo_rating_system#Mathematical_details
+for more information about the equations used here.
 
+*/
 
 // winning player receives score of 1
 // losing player receives score of 0
@@ -18,10 +22,18 @@ exports.calculateRatingChange = function calculateRatingChange(rA, rB, kA, sA) {
     return kA*(sA-eA);
 }
 
+/*
+These K values are a multiplier on the amount of MMR a player gains/losses each match.
+You can consider these to be 'uncertainty' values.
 
-const K_HIGH = 40; // for new players
+A recommended 'high' K value is 40, but that is for players with less than 30 matches.
+
+Since we want to have only 10 placement matches, lets try a higher 'high' K value instead.
+
+*/
+const K_HIGH = 120; // for placement matches
 const K_MID = 20; // for low to mid tier players (below GC)
-const K_LOW = 10; // for high tier players (above GC) for now this is not used
+const K_LOW = 10; // for high tier players (above GC) NOTE: for now this is not used
 
 const NUMBER_OF_PLACEMENT_MATCHES = 10;
 
@@ -40,7 +52,7 @@ exports.getK = function getK(rating, totalMatches) {
 }
 
 
-
+exports.NUMBER_OF_PLACEMENT_MATCHES = NUMBER_OF_PLACEMENT_MATCHES;
 
 // ranks
 exports.BRONZE_1 = 0;
