@@ -32,10 +32,10 @@ process.on('exit', handleExit);
 function addLeaderboardTable(players, sort, nextMatchType) {
 
     var rank = '#';
+    var rating = 'Rating';
     var name = 'Name';
     var wins = 'Wins';
     var losses = 'Losses';
-    var winsMinusLosses = '+/-';
     var rate = '%';
 
     // set the match type before sorting
@@ -68,9 +68,6 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         case SORT_BY_LOSSES:
             players.sort(sortPlayersByLosses);
             break;
-        case SORT_BY_WINS_MINUS_LOSSES:
-            players.sort(sortPlayersByWinsMinusLosses);
-            break;
         case SORT_BY_WIN_PERCENTAGE:
             players.sort(sortPlayersByWinpercentage);
             break;
@@ -88,9 +85,29 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         default:
             lbHeaderText = 'Six Mans';
     }
-    let lbStr = `<h2 name='${nextMatchType}'>${lbHeaderText}</h2></br><table><tr><th>` + rank + `<a href='/leaderboard?sort=rank#${nextMatchType}'>&#8659;</a> </th><th>` + name + ` <a href='/leaderboard?sort=name#${nextMatchType}'>&#8659;</a> </th><th>` + wins + ` <a href='/leaderboard?sort=wins#${nextMatchType}'>&#8659;</a> </th><th>` + losses + ` <a href='/leaderboard?sort=losses#${nextMatchType}'>&#8659;</a> </th><th>` + winsMinusLosses + ` <a href='/leaderboard?sort=winsminuslosses#${nextMatchType}'>&#8659;</a> </th><th>` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th></tr>`;
+    let lbStr = `
+<h2 name='${nextMatchType}'>
+    ${lbHeaderText}
+</h2></br>
+<table>
+    <tr>
+        <th style="width: 2%">` + rank + ` <a href='/leaderboard?sort=rank#${nextMatchType}'>&#8659;</a></th>
+        <th style="width: 2%">` + rating + ` <a href='/leaderboard?sort=rating#${nextMatchType}'>&#8659;</a></th>
+        <th style="width: 10%">` + name + ` <a href='/leaderboard?sort=name#${nextMatchType}'>&#8659;</a></th>
+        <th style="width: 2%">` + wins + ` <a href='/leaderboard?sort=wins#${nextMatchType}'>&#8659;</a></th>
+        <th style="width: 2%">` + losses + ` <a href='/leaderboard?sort=losses#${nextMatchType}'>&#8659;</a></th>
+        <th style="width: 25%">` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th>
+    </tr>`;
     for(entry of players) {
         rank = entry.rank.toString();
+        let ratingChange;
+        if(entry.stats[matchType].lastRatingChange >= 0) {
+            ratingChange = `+${entry.stats[matchType].lastRatingChange.toFixed(0)}`;
+        }
+        else {
+            ratingChange = `${entry.stats[matchType].lastRatingChange.toFixed(0)}`;
+        }
+        rating = `${entry.stats[matchType].rating.toFixed(0)} ${ratingChange}`;
         name = `<a href='/player?q=${entry._id}'>${entry.name}</a>`;
         wins = entry.stats[matchType].wins.toString();
         losses = entry.stats[matchType].losses.toString();
@@ -102,7 +119,7 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         else {
             rate = (((entry.stats[matchType].wins / (entry.stats[matchType].wins + entry.stats[matchType].losses)) * 100).toFixed(2) + '%');
         }
-        lbStr += '<tr><td>' + rank + '</td><td>' + name + '</td><td>' + wins + '</td><td>' + losses + '</td><td>' + winsMinusLosses + '</td><td>' + rate + '</td></tr>';
+        lbStr += '<tr><td>' + rank + '</td><td>' + rating + '</td><td>' + name + '</td><td>' + wins + '</td><td>' + losses + '</td><td>' + rate + '</td></tr>';
     }
     lbStr += `</table></br>`;
 
@@ -156,10 +173,10 @@ async function getPlayerSync(playerId) {
 
 // default player ranking
 function rankPlayers(p1,p2) {
-    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
+    if (p1.stats[matchType].rating < p2.stats[matchType].rating) {
         return 1;
     }
-    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
+    else if (p1.stats[matchType].rating > p2.stats[matchType].rating){
         return -1;
     }
     else
@@ -319,20 +336,23 @@ tr:nth-child(even) {
     pStr += `<h1>${player.name}</h1>
 <table>
 <tr>
-    <th>
+    <th style="width: 8%">
         Timestamp
     </th>
-    <th>
+    <th style="width: 2%">
         Match ID
     </th>
-    <th>
+    <th style="width: 25%">
         Team 1
     </th>
-    <th>
+    <th style="width: 25%">
         Team 2
     </th>
-    <th>
+    <th style="width: 5%">
         Winning Team
+    </th>
+    <th style="width: 25%">
+        Rating Change
     </th>
 </tr>`;
 
@@ -368,6 +388,24 @@ tr:nth-child(even) {
         // found some matches
         for(match of matches) {
             //console.log(match);
+            var thisMatchType;
+            switch(match.teamSize) {
+                /*
+                case config.SIX_MANS_TEAM_SIZE:
+                    matchType = Player.SIX_MANS_PROPERTY;
+                    break;
+                */
+                case config.FOUR_MANS_TEAM_SIZE:
+                    thisMatchType = Player.FOUR_MANS_PROPERTY;
+                    break;
+
+                case config.TWO_MANS_TEAM_SIZE:
+                    thisMatchType = Player.TWO_MANS_PROPERTY;
+                    break;
+                default:
+                    thisMatchType = Player.SIX_MANS_PROPERTY;
+            }
+
             // get players for team 1
             let team0String = "";
             for(p of match.teams[0]) {
@@ -421,6 +459,9 @@ tr:nth-child(even) {
     </td>
     <td>
         ${winningTeamStr}
+    </td>
+    <td>
+        ${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(3)}
     </td>
 
 </tr>`
@@ -495,7 +536,14 @@ function sortPlayersByWins(p1,p2) {
 }
 
 function sortPlayersByWinsMinusLosses(p1, p2) {
-    return rankPlayers(p1, p2);
+    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
+        return 1;
+    }
+    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
+        return -1;
+    }
+    else
+        return 0;
 }
 
 const express = require('express');
