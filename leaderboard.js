@@ -126,6 +126,101 @@ function addLeaderboardTable(players, sort, nextMatchType) {
     return lbStr;
 }
 
+async function addMatchTypeTable(player, matchType) {
+    let query = {$or: []};
+    for(timestamp in player.stats[matchType].matches) {
+        query.$or.push({timestamp:Number(timestamp), id:player.stats[matchType].matches[timestamp]});
+    }
+
+    var matches = [];
+
+    if(query.$or.length > 0) {
+        // need to query for something
+        try{
+            matches = await db.collection('matches').find(query).toArray();
+        }
+        catch(err) {
+            console.error(err)
+        }
+    }
+    else {
+        return ''; // no matches for this match type
+    }
+
+    let headerText;
+    switch(matchType) {
+        case Player.SIX_MANS_PROPERTY:
+            headerText = 'Six mans';
+            break;
+        case Player.FOUR_MANS_PROPERTY:
+            headerText = 'Four mans';
+            break;
+        case Player.TWO_MANS_PROPERTY:
+            headerText = 'Two mans';
+            break;
+    }
+    let pStr = `
+<h2>
+    ${headerText}
+</h2>
+<table style="width: 25%">
+    <tr>
+        <th style="width: 10%">
+            Wins
+        </th>
+        <th style="width: 10%">
+            Losses
+        </th>
+        <th style="width: 10%">
+            Total Wins
+        </th>
+        <th style="width: 10%">
+            Total Losses
+        </th>
+    </tr>
+    <tr>
+        <td>
+            ${player.stats[matchType].wins}
+        </td>
+        <td>
+            ${player.stats[matchType].losses}
+        </td>
+        <td>
+            ${player.stats[matchType].totalWins}
+        </td>
+        <td>
+            ${player.stats[matchType].totalLosses}
+        </td>
+    </tr>
+
+</table>
+<br>
+<table>
+<tr>
+    <th style="width: 8%">
+        Timestamp
+    </th>
+    <th style="width: 2%">
+        Match ID
+    </th>
+    <th style="width: 25%">
+        Team 1
+    </th>
+    <th style="width: 25%">
+        Team 2
+    </th>
+    <th style="width: 5%">
+        Winning Team
+    </th>
+    <th style="width: 25%">
+        Rating Change
+    </th>
+</tr>
+`;
+
+    return pStr;
+}
+
 function handleDataBaseError(dberr, logMessage, exitProcess) {
     console.error(dberr);
     if(exitProcess) {
@@ -232,6 +327,9 @@ function showHelp(req, res) {
     <div class="cmd">${userCommandPrefix}matches</div>
     -show ongoing matches</br>
 </br>
+    <div class="cmd">${userCommandPrefix}new season</div>
+    -reset player stats for a new season</br>
+</br>
     <div class="cmd">${userCommandPrefix}q ${userCommandPrefix}q6 ${userCommandPrefix}queue ${userCommandPrefix}queue6</div>
     -add yourself to the 6 mans queue</br>
 </br>
@@ -249,11 +347,8 @@ function showHelp(req, res) {
     -optionally include match ID to report the result of a previous match</br>
 </br>
     <div class="cmd">${userCommandPrefix}set</div>
-    -used to set various configurations</br>
     -valid command parameters are:</br>
         <span class="cmd">${userCommandPrefix}set prefix</span> &lt;new prefix&gt;</br>
-        <span class="cmd">${userCommandPrefix}set stats</span> @&lt;player&gt; &lt;match type&gt; &lt;wins&gt; &lt;losses&gt;</br>
-            Valid match types are 'six', 'four', or 'two'</br>
 </br>
     <div class="cmd">${userCommandPrefix}s ${userCommandPrefix}status</div>
     -show the queue status</br>
@@ -333,29 +428,14 @@ tr:nth-child(even) {
 </head>
 <body>`;
 
-    pStr += `<h1>${player.name}</h1>
-<table>
-<tr>
-    <th style="width: 8%">
-        Timestamp
-    </th>
-    <th style="width: 2%">
-        Match ID
-    </th>
-    <th style="width: 25%">
-        Team 1
-    </th>
-    <th style="width: 25%">
-        Team 2
-    </th>
-    <th style="width: 5%">
-        Winning Team
-    </th>
-    <th style="width: 25%">
-        Rating Change
-    </th>
-</tr>`;
+    pStr += `
+<h1>
+    ${player.name}
+</h1>`;
 
+    pStr += await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY);
+    pStr += await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY);
+    pStr += await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY);
 
     // build query for player matches
     let query = {$or: []};
