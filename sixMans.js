@@ -27,6 +27,7 @@ TODO:
 const config = require('./config.js');
 const Match = require('./match');
 const Player = require('./player');
+const rating = require('./rating');
 
 const mongo = require('mongodb');
 const fs = require('fs');
@@ -576,60 +577,6 @@ function createMatch(msg, teamSize) {
     return match;
 }
 
-function decrementMatchLosses(team, matchType) {
-    for (m of team) {
-        decrementMemberMatchLosses(m, matchType);
-    }
-}
-
-function decrementMatchWins(team, matchType) {
-    for (m of team) {
-        decrementMemberMatchWins(m, matchType);
-    }
-}
-
-function decrementMemberMatchLosses(member, matchType) {
-    const query = {_id: member.id};
-    db.collection('players').findOne(query, (err, result) => {
-        if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
-        }
-        else {
-            if(result != null) {
-                // found player in database, need to update document for that player in the players collection
-                let update = {};
-                update[`stats.${matchType}.losses`] = -1;
-                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
-                    if(err) {
-                        handleDataBaseError(err, 'Error undoing player loss\n', false);
-                    }
-                });
-            }
-        }
-    });
-}
-
-function decrementMemberMatchWins(member, matchType) {
-    const query = {_id: member.id};
-    db.collection('players').findOne(query, (err, result) => {
-        if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
-        }
-        else {
-            if(result != null) {
-                // found player in database, need to update document for that player in the players collection
-                let update = {};
-                update[`stats.${matchType}.wins`] = -1;
-                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
-                    if(err) {
-                        handleDataBaseError(err, 'Error undoing player win\n', false);
-                    }
-                });
-            }
-        }
-    });
-}
-
 function displayHelp(msg) {
     msg.channel.send(`Please see help at http://${config.serverIP}:${config.leaderboardPort}/help`).then().catch(console.error);
 }
@@ -933,10 +880,10 @@ function queueTwoString() {
 
 function rankPlayersFour(p1,p2) {
     const matchType = Player.FOUR_MANS_PROPERTY;
-    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
+    if (p1.stats[matchType].rating < p2.stats[matchType].rating) {
         return 1;
     }
-    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
+    else if (p1.stats[matchType].rating > p2.stats[matchType].rating){
         return -1;
     }
     else
@@ -945,10 +892,10 @@ function rankPlayersFour(p1,p2) {
 
 function rankPlayersSix(p1,p2) {
     const matchType = Player.SIX_MANS_PROPERTY;
-    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
+    if (p1.stats[matchType].rating < p2.stats[matchType].rating) {
         return 1;
     }
-    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
+    else if (p1.stats[matchType].rating > p2.stats[matchType].rating){
         return -1;
     }
     else
@@ -957,10 +904,10 @@ function rankPlayersSix(p1,p2) {
 
 function rankPlayersTwo(p1,p2) {
     const matchType = Player.TWO_MANS_PROPERTY;
-    if ((p1.stats[matchType].wins - p1.stats[matchType].losses) < (p2.stats[matchType].wins - p2.stats[matchType].losses)) {
+    if (p1.stats[matchType].rating < p2.stats[matchType].rating) {
         return 1;
     }
-    else if ((p1.stats[matchType].wins - p1.stats[matchType].losses) > (p2.stats[matchType].wins - p2.stats[matchType].losses)){
+    else if (p1.stats[matchType].rating > p2.stats[matchType].rating){
         return -1;
     }
     else
@@ -1060,7 +1007,7 @@ function removeUserFromQueue(msg) {
     }
 }
 
-function reportMatchResult(msg) {
+async function reportMatchResult(msg) {
     // remove match from matches object and remove users from membersInMatches object
 
     var match = null;
@@ -1133,7 +1080,7 @@ function reportMatchResult(msg) {
                 // see if this was a previously reported match that had its result undone in mongoDB
                 const query = {id: matchId};
                 try{
-                    db.collection('matches').find(query).toArray((err, result) => {
+                    db.collection('matches').find(query).toArray(async (err, result) => {
                         if(err) throw err;
                         switch(result.length) {
                             case 0:
@@ -1143,23 +1090,6 @@ function reportMatchResult(msg) {
                             case 1:
                                 // found exactly 1 match
                                 match = result[0];
-
-                                switch(match.teamSize) {
-                                    /*
-                                    case config.SIX_MANS_TEAM_SIZE:
-                                        matchType = Player.SIX_MANS_PROPERTY;
-                                        break;
-                                    */
-                                    case config.FOUR_MANS_TEAM_SIZE:
-                                        matchType = Player.FOUR_MANS_PROPERTY;
-                                        break;
-
-                                    case config.TWO_MANS_TEAM_SIZE:
-                                        matchType = Player.TWO_MANS_PROPERTY;
-                                        break;
-                                    default:
-                                        matchType = Player.SIX_MANS_PROPERTY;
-                                }
 
                                 if(!match.reported && !match.canceled) {
                                     // need to report match results
@@ -1172,7 +1102,6 @@ function reportMatchResult(msg) {
                                     }
 
                                     // find which team this user was on
-                                    let winningTeam = -1;
                                     var teamId = getMemberTeamId(match, msg.member.id);
                                     var team0String, team1String;
 
@@ -1181,34 +1110,28 @@ function reportMatchResult(msg) {
                                         if(teamId === 0) {
                                             team0String = 'won';
                                             team1String = 'lost'
-                                            reportTeamWon(match.teams[0], matchType);
-                                            reportTeamLost(match.teams[1], matchType);
-                                            winningTeam = 0;
+                                            match.winningTeam = 0;
                                         }
                                         else {
                                             team0String = 'lost';
                                             team1String = 'won'
-                                            reportTeamLost(match.teams[0], matchType);
-                                            reportTeamWon(match.teams[1], matchType);
-                                            winningTeam = 1;
+                                            match.winningTeam = 1;
                                         }
+                                        await reportResult(match);
                                     }
                                     else if(userReportedOutcome === USER_REPORTED_LOSS){
                                         // this user's team lost the match
                                         if(teamId === 0) {
                                             team0String = 'lost';
                                             team1String = 'won'
-                                            reportTeamLost(match.teams[0], matchType);
-                                            reportTeamWon(match.teams[1], matchType);
-                                            winningTeam = 1;
+                                            match.winningTeam = 1;
                                         }
                                         else {
                                             team0String = 'won';
                                             team1String = 'lost'
-                                            reportTeamWon(match.teams[0], matchType);
-                                            reportTeamLost(match.teams[1], matchType);
-                                            winningTeam = 0;
+                                            match.winningTeam = 0;
                                         }
+                                        await reportResult(match);
                                     }
                                     else {
                                         msg.channel.send(`>>> Invalid command parameter "${arg}". Valid "report" parameters are "win" or "loss".`);
@@ -1217,7 +1140,7 @@ function reportMatchResult(msg) {
 
                                     try{
                                         const queryUpdate = {id: match.id, timestamp: match.timestamp};
-                                        const newValues = {$set: {winningTeam: winningTeam, reported: true}};
+                                        const newValues = {$set: {winningTeam: match.winningTeam, reported: true}};
                                         db.collection('matches').updateOne(queryUpdate, newValues, (err, res) => {
                                             if(err)
                                                 throw err;
@@ -1260,25 +1183,6 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
         return;
     }
 
-
-    switch(match.teamSize) {
-        /*
-        case config.SIX_MANS_TEAM_SIZE:
-            matchType = Player.SIX_MANS_PROPERTY;
-            break;
-        */
-        case config.FOUR_MANS_TEAM_SIZE:
-            matchType = Player.FOUR_MANS_PROPERTY;
-            break;
-
-        case config.TWO_MANS_TEAM_SIZE:
-            matchType = Player.TWO_MANS_PROPERTY;
-            break;
-
-        default:
-            matchType = Player.SIX_MANS_PROPERTY;
-    }
-
     // find which team this user was on
     var teamId = getMemberTeamId(match, msg.member.id);
     var team0String, team1String;
@@ -1288,34 +1192,28 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
         if(teamId === 0) {
             team0String = 'won';
             team1String = 'lost'
-            reportTeamWon(match.teams[0], matchType);
-            reportTeamLost(match.teams[1], matchType);
             match.winningTeam = 0;
         }
         else {
             team0String = 'lost';
             team1String = 'won'
-            reportTeamLost(match.teams[0], matchType);
-            reportTeamWon(match.teams[1], matchType);
             match.winningTeam = 1;
         }
+        await reportResult(match);
     }
     else if(arg === 'loss'){
         // this user's team lost the match
         if(teamId === 0) {
             team0String = 'lost';
             team1String = 'won'
-            reportTeamLost(match.teams[0], matchType);
-            reportTeamWon(match.teams[1], matchType);
             match.winningTeam = 1;
         }
         else {
             team0String = 'won';
             team1String = 'lost'
-            reportTeamWon(match.teams[0], matchType);
-            reportTeamLost(match.teams[1], matchType);
             match.winningTeam = 0;
         }
+        await reportResult(match);
     }
     else {
         msg.channel.send(`>>> Invalid command parameter "${arg}". Valid "report" parameters are "win" or "loss".`);
@@ -1330,63 +1228,84 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
     endMatch(msg, match);
 }
 
-function reportMemberLost(member, matchType) {
-    const query = {_id: member.id};
-    // TODO change to findAndModify
-    db.collection('players').findOne(query, (err, result) => {
-        if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
-        }
-        else {
-            if(result != null) {
-                // found player in database, need to update document for that player in the players collection
+async function reportResult(match) {
+    switch(match.teamSize) {
+        /*
+        case config.SIX_MANS_TEAM_SIZE:
+            matchType = Player.SIX_MANS_PROPERTY;
+            break;
+        */
+        case config.FOUR_MANS_TEAM_SIZE:
+            matchType = Player.FOUR_MANS_PROPERTY;
+            break;
 
-                let update = {};
-                update[`stats.${matchType}.losses`] = 1;
-
-                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
-                    if(err) {
-                        handleDataBaseError(err, 'Error updating player lost\n', false);
-                    }
-                });
-            }
-        }
-    });
-}
-
-function reportMemberWon(member, matchType) {
-    const query = {_id: member.id};
-    // TODO change to findAndModify
-    db.collection('players').findOne(query, (err, result) => {
-        if(err) {
-            handleDataBaseError(err, `Error finding member ID ${member.id} in players collection\n`, false);
-        }
-        else {
-            if(result != null) {
-                // found player in database, need to update document for that player in the players collection
-
-                let update = {};
-                update[`stats.${matchType}.wins`] = 1;
-
-                db.collection('players').updateOne(query, {$inc: update}, (err, res) => {
-                    if(err) {
-                        handleDataBaseError(err, 'Error updating player won\n', false);
-                    }
-                });
-            }
-        }
-    });
-}
-
-function reportTeamLost(team, matchType) {
-    for (m of team) {
-        reportMemberLost(m, matchType);
+        case config.TWO_MANS_TEAM_SIZE:
+            matchType = Player.TWO_MANS_PROPERTY;
+            break;
+        default:
+            matchType = Player.SIX_MANS_PROPERTY;
     }
-}
 
-function reportTeamWon(team, matchType) {
-    for (m of team) {
-        reportMemberWon(m, matchType);
+    // first, get each player from mongoDB and synchronously await the result since we need to get all the players scores before proceeding
+    let teams = [[], []]; // array to contain player data from mongoDB
+    for(let i = 0; i < 2; i++) {
+        for (m of match.teams[i]) {
+            try {
+                const query = {_id: m.id};
+                const p = await db.collection('players').findOne(query);
+                teams[i].push(p);
+            }
+            catch (err) {
+                // should not happen
+                handleDataBaseError(err, 'Error retrieving player data\n', false);
+                teams[i].push(Player(m)); // push result for new player...
+            }
+        }
+    }
+    let avgs = [0, 0];
+
+    // next, get the average MMR of each team
+    for(let i = 0; i < 2; i++) {
+        for(let j = 0; j < match.teamSize; j++) {
+            avgs[i] += teams[i][j].stats[matchType].rating;
+        }
+        avgs[i] /= match.teamSize;
+    }
+
+    // next, get the new rating for each player
+    for(let i = 0; i < 2; i++) {
+        // score is a 0 or 1 value used for calculating each player's new rating
+        const a = i, b = (i + 1) % 2;
+        let score = rating.loss;
+        if(match.winningTeam === i) {
+            score = rating.win;
+        }
+        for (m of teams[i]) {
+            // now get this players new rating
+            const d = rating.calculateRatingChange(avgs[i], avgs[b], rating.getK(m.stats[matchType].rating, m.stats[matchType].wins + m.stats[matchType].losses), score); // change in this player's rating
+            const newRating = m.stats[matchType].rating + d;
+
+            // we have this players new rating, now update mongoDB with the rating
+            let update = {};
+            if(match.winningTeam === i) {
+                update[`stats.${matchType}.wins`] = m.stats[matchType].wins + 1;
+            }
+            else {
+                update[`stats.${matchType}.losses`] = m.stats[matchType].losses + 1;
+            }
+            update[`stats.${matchType}.rating`] = newRating;
+            update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = d;
+            update[`stats.${matchType}.lastRatingChange`] = d;
+
+            const query = {_id: m._id};
+
+            try {
+                await db.collection('players').updateOne(query, {$set: update}); // doing this synchronously because we want to return to the calling function after all the player updates are done
+            }
+            catch (err) {
+                handleDataBaseError(err, 'Error updating player result\n', false);
+            }
+        }
     }
 }
 
@@ -1663,7 +1582,7 @@ function undoMatchResult(msg) {
     // valid number, check if this is a valid match id
     const query = {id: matchId};
     try{
-        db.collection('matches').find(query).toArray((err, result) => {
+        db.collection('matches').find(query).toArray(async (err, result) => {
             if(err) throw err;
             switch(result.length) {
                 case 0:
@@ -1692,8 +1611,47 @@ function undoMatchResult(msg) {
                                 matchType = Player.SIX_MANS_PROPERTY;
                         }
 
-                        decrementMatchLosses(match.teams[(match.winningTeam + 1) % 2], matchType);
-                        decrementMatchWins(match.teams[match.winningTeam], matchType);
+                        /////////////////
+
+                        for(let i = 0; i < 2; i++) {
+                            for(m of match.teams[i]) {
+                                // first, fetch this player
+                                const query = {_id: m.id};
+                                let p;
+                                try{
+                                    p = await db.collection('players').findOne(query);
+                                }
+                                catch (err) {
+                                    handleDataBaseError(err, 'Error finding player for undo\n', false);
+                                    continue;
+                                }
+
+                                let update = {};
+
+                                // decrement player wins/losses depending on what the match result was
+                                if(match.winningTeam === i) {
+                                    update[`stats.${matchType}.wins`] = p.stats[matchType].wins - 1;
+                                }
+                                else {
+                                    update[`stats.${matchType}.losses`] = p.stats[matchType].losses - 1;
+                                }
+
+                                // revert MMR to what it previously was
+                                const ratingChange = p.stats[matchType].matchRatingChange[match.timestamp];
+                                update[`stats.${matchType}.rating`] = p.stats[matchType].rating - ratingChange;
+                                update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = 0;
+                                update[`stats.${matchType}.lastRatingChange`] = ratingChange;
+
+                                try {
+                                    await db.collection('players').updateOne(query, {$set: update});
+                                }
+                                catch (err) {
+                                    handleDataBaseError(err, 'Error undoing player result\n', false);
+                                }
+
+                            }
+                        }
+
                         match.winningTeam = -1;
                         match.reported = false;
                         try{
