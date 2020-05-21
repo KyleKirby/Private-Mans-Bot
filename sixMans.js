@@ -184,6 +184,10 @@ module.exports = {
             showMatches(msg);
             break;
 
+            case 'new':
+            newCommand(msg);
+            break;
+
             case 'q':
             case 'queue':
             addUserToQueue(msg);
@@ -825,6 +829,49 @@ Captains now have 2 minutes to pick teams.`);
     messageCaptain(msg, match, 1);
 }
 
+function newCommand(msg) {
+    if(msg.member.roles.cache.has(config.SIX_MANS_ROLE) === false) {
+        // user does not have sufficient permissions for this command
+        return;
+    }
+    const args = msg.content.split(' '); // let the command be the first word in the user message
+    if(args.length != 2) {
+        return;
+    }
+    let arg = args[1];
+    switch(arg) {
+        case 'season':
+            // start new season
+            // this means resetting MMR, wins, losses to default value for all players
+            db.collection('players').find({}).toArray((err, players) => {
+                if(err) {
+                    handleDataBaseError(err, 'Error retrieving player stats\n', false);
+                    res.send("Could not retrieve player statistics. Please wait a minute and try again. If this problem persists, you may contact hubris#2390 on Discord.");
+                }
+                else {
+                    for(p of players) {
+                        let update = {};
+                        update[`stats.${matchType}.wins`] = 0;
+                        update[`stats.${matchType}.losses`] = 0;
+                        update[`stats.${matchType}.rating`] = Player.STARTING_RATING;
+                        update[`stats.${matchType}.lastRatingChange`] = 0;
+
+                        const query = {_id: p._id};
+
+                        try {
+                            db.collection('players').updateOne(query, {$set: update});
+                        }
+                        catch (err) {
+                            handleDataBaseError(err, 'Error updating player result\n', false);
+                        }
+                    }
+                    msg.channel.send(`Resetting player stats for new season.`);
+                }
+            });
+            break;
+    }
+}
+
 async function orderPlayersByRank(players, teamSize) {
     var playerList = [];
 
@@ -1277,7 +1324,8 @@ async function reportResult(match) {
         // score is a 0 or 1 value used for calculating each player's new rating
         const a = i, b = (i + 1) % 2;
         let score = rating.loss;
-        if(match.winningTeam === i) {
+        const winner = (match.winningTeam === i);
+        if(winner) {
             score = rating.win;
         }
         for (m of teams[i]) {
@@ -1287,11 +1335,13 @@ async function reportResult(match) {
 
             // we have this players new rating, now update mongoDB with the rating
             let update = {};
-            if(match.winningTeam === i) {
+            if(winner) {
                 update[`stats.${matchType}.wins`] = m.stats[matchType].wins + 1;
+                update[`stats.${matchType}.totalWins`] = m.stats[matchType].totalWins + 1;
             }
             else {
                 update[`stats.${matchType}.losses`] = m.stats[matchType].losses + 1;
+                update[`stats.${matchType}.totalLosses`] = m.stats[matchType].totalLosses + 1;
             }
             update[`stats.${matchType}.rating`] = newRating;
             update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = d;
@@ -1348,6 +1398,7 @@ function setCommand(msg) {
                 }
             });
             break;
+        /* // for now, disabling 'set stats' command
         case 'stats':
             // set player stats
 
@@ -1432,6 +1483,7 @@ function setCommand(msg) {
 
 
             break;
+            */
 
         default:
             // ignore
@@ -1611,9 +1663,8 @@ function undoMatchResult(msg) {
                                 matchType = Player.SIX_MANS_PROPERTY;
                         }
 
-                        /////////////////
-
                         for(let i = 0; i < 2; i++) {
+                            const winner = (match.winningTeam === i);
                             for(m of match.teams[i]) {
                                 // first, fetch this player
                                 const query = {_id: m.id};
@@ -1629,11 +1680,13 @@ function undoMatchResult(msg) {
                                 let update = {};
 
                                 // decrement player wins/losses depending on what the match result was
-                                if(match.winningTeam === i) {
+                                if(winner) {
                                     update[`stats.${matchType}.wins`] = p.stats[matchType].wins - 1;
+                                    update[`stats.${matchType}.totalWins`] = p.stats[matchType].totalWins - 1;
                                 }
                                 else {
                                     update[`stats.${matchType}.losses`] = p.stats[matchType].losses - 1;
+                                    update[`stats.${matchType}.totalLosses`] = p.stats[matchType].totalLosses - 1;
                                 }
 
                                 // revert MMR to what it previously was
