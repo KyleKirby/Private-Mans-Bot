@@ -1,10 +1,23 @@
+/*
+TODO:
+
+-make leaderboard and player pages more sexy
+
+-use rank icons on leaderboard and player pages
+
+*/
+
+
 const mongo = require('mongodb');
 const fs = require('fs');
 const config = require('./config');
+var path = require('path');
 
 const sixMans = require('./sixMans');
 
 const Player = require('./player');
+
+const Rating = require('./rating');
 
 
 var MongoClient = require('mongodb').MongoClient;
@@ -29,9 +42,95 @@ const SORT_BY_WIN_PERCENTAGE = 5;
 
 process.on('exit', handleExit);
 
+const HEADER_STYLE = `
+body {
+    background-color: #000040;
+    color: #ffffff;
+}
+
+table {
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td, th {
+  border: 1px solid #000075;
+  text-align: left;
+  padding: 8px;
+}
+
+tr:nth-child(even) {
+  background-color: #000090;
+}
+
+a:link {
+    color: #6666ff;
+}
+
+a:visited {
+    color: #6666ff;
+}
+
+a:hover {
+    color: #6666ff;
+}
+
+a:active {
+    color: #6666ff;
+}
+`;
+
+/*
+BRONZE_1 = 0;
+BRONZE_2 = 190;
+BRONZE_3 = 247;
+SILVER_1 = 310;
+SILVER_2 = 369;
+SILVER_3 = 429;
+GOLD_1 = 490;
+GOLD_2 = 550;
+GOLD_3 = 612;
+PLATINUM_1 = 692;
+PLATINUM_2 = 772;
+PLATINUM_3 = 852;
+DIAMOND_1 = 933;
+DIAMOND_2 = 1012;
+DIAMOND_3 = 1095;
+CHAMPION_1 = 1195;
+CHAMPION_2 = 1295;
+CHAMPION_3 = 1395;
+GRAND_CHAMPION = 1515;
+*/
+
+const UNRANKED = {title:'Unranked', icon:'/icons/unranked.png'};
+
+const RANKS = [
+    {title:'Bronze 1', min:Rating.BRONZE_1, icon:'/icons/bronze1.png'},
+    {title:'Bronze 2', min:Rating.BRONZE_2, icon:'/icons/bronze2.png'},
+    {title:'Bronze 3', min:Rating.BRONZE_3, icon:'/icons/bronze3.png'},
+    {title:'Silver 1', min:Rating.SILVER_1, icon:'/icons/silver1.png'},
+    {title:'Silver 2', min:Rating.SILVER_2, icon:'/icons/silver2.png'},
+    {title:'Silver 3', min:Rating.SILVER_3, icon:'/icons/silver3.png'},
+    {title:'Gold 1', min:Rating.GOLD_1, icon:'/icons/gold1.png'},
+    {title:'Gold 2', min:Rating.GOLD_2, icon:'/icons/gold2.png'},
+    {title:'Gold 3', min:Rating.GOLD_3, icon:'/icons/gold3.png'},
+    {title:'Platinum 1', min:Rating.PLATINUM_1, icon:'/icons/platinum1.png'},
+    {title:'Platinum 2', min:Rating.PLATINUM_2, icon:'/icons/platinum2.png'},
+    {title:'Platinum 3', min:Rating.PLATINUM_3, icon:'/icons/platinum3.png'},
+    {title:'Diamond 1', min:Rating.DIAMOND_1, icon:'/icons/diamond1.png'},
+    {title:'Diamond 2', min:Rating.DIAMOND_2, icon:'/icons/diamond2.png'},
+    {title:'Diamond 3', min:Rating.DIAMOND_3, icon:'/icons/diamond3.png'},
+    {title:'Champion 1', min:Rating.CHAMPION_1, icon:'/icons/champ1.png'},
+    {title:'Champion 2', min:Rating.CHAMPION_2, icon:'/icons/champ2.png'},
+    {title:'Champion 3', min:Rating.CHAMPION_3, icon:'/icons/champ3.png'},
+    {title:'Grand Champion', min:Rating.GRAND_CHAMPION, icon:'/icons/grandchamp.png'}
+];
+
 function addLeaderboardTable(players, sort, nextMatchType) {
 
     var rank = '#';
+    var icon = '';
     var rating = 'Rating';
     var name = 'Name';
     var wins = 'Wins';
@@ -92,6 +191,7 @@ function addLeaderboardTable(players, sort, nextMatchType) {
 <table>
     <tr>
         <th style="width: 2%">` + rank + ` <a href='/leaderboard?sort=rank#${nextMatchType}'>&#8659;</a></th>
+        <th style="width: 2%">` + icon + `</th>
         <th style="width: 2%">` + rating + ` <a href='/leaderboard?sort=rating#${nextMatchType}'>&#8659;</a></th>
         <th style="width: 10%">` + name + ` <a href='/leaderboard?sort=name#${nextMatchType}'>&#8659;</a></th>
         <th style="width: 2%">` + wins + ` <a href='/leaderboard?sort=wins#${nextMatchType}'>&#8659;</a></th>
@@ -99,7 +199,12 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         <th style="width: 25%">` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th>
     </tr>`;
     for(entry of players) {
+
         rank = entry.rank.toString();
+
+        const playerRank = getPlayerRankIcon(entry.stats[nextMatchType]);
+        icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
+
         let ratingChange;
         if(entry.stats[matchType].lastRatingChange >= 0) {
             ratingChange = `+${entry.stats[matchType].lastRatingChange.toFixed(0)}`;
@@ -119,17 +224,17 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         else {
             rate = (((entry.stats[matchType].wins / (entry.stats[matchType].wins + entry.stats[matchType].losses)) * 100).toFixed(2) + '%');
         }
-        lbStr += '<tr><td>' + rank + '</td><td>' + rating + '</td><td>' + name + '</td><td>' + wins + '</td><td>' + losses + '</td><td>' + rate + '</td></tr>';
+        lbStr += '<tr><td>' + rank + '</td><td>' + icon + '</td><td>' + rating + '</td><td>' + name + '</td><td>' + wins + '</td><td>' + losses + '</td><td>' + rate + '</td></tr>';
     }
     lbStr += `</table></br>`;
 
     return lbStr;
 }
 
-async function addMatchTypeTable(player, matchType) {
+async function addMatchTypeTable(player, thisMatchType) {
     let query = {$or: []};
-    for(timestamp in player.stats[matchType].matches) {
-        query.$or.push({timestamp:Number(timestamp), id:player.stats[matchType].matches[timestamp]});
+    for(timestamp in player.stats[thisMatchType].matches) {
+        query.$or.push({timestamp:Number(timestamp), id:player.stats[thisMatchType].matches[timestamp]});
     }
 
     var matches = [];
@@ -148,7 +253,7 @@ async function addMatchTypeTable(player, matchType) {
     }
 
     let headerText;
-    switch(matchType) {
+    switch(thisMatchType) {
         case Player.SIX_MANS_PROPERTY:
             headerText = 'Six mans';
             break;
@@ -159,17 +264,21 @@ async function addMatchTypeTable(player, matchType) {
             headerText = 'Two mans';
             break;
     }
+
+    const playerRank = getPlayerRankIcon(player.stats[thisMatchType]);
+    icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
+
     let pStr = `
 <h2>
-    ${headerText}
+    ${headerText} ${icon}
 </h2>
-<table style="width: 25%">
+<table style="width: 30%">
     <tr>
         <th style="width: 10%">
-            Wins
+            Season Wins
         </th>
         <th style="width: 10%">
-            Losses
+            Season Losses
         </th>
         <th style="width: 10%">
             Total Wins
@@ -180,16 +289,16 @@ async function addMatchTypeTable(player, matchType) {
     </tr>
     <tr>
         <td>
-            ${player.stats[matchType].wins}
+            ${player.stats[thisMatchType].wins}
         </td>
         <td>
-            ${player.stats[matchType].losses}
+            ${player.stats[thisMatchType].losses}
         </td>
         <td>
-            ${player.stats[matchType].totalWins}
+            ${player.stats[thisMatchType].totalWins}
         </td>
         <td>
-            ${player.stats[matchType].totalLosses}
+            ${player.stats[thisMatchType].totalLosses}
         </td>
     </tr>
 
@@ -197,7 +306,7 @@ async function addMatchTypeTable(player, matchType) {
 <br>
 <table>
 <tr>
-    <th style="width: 8%">
+    <th style="width: 9%">
         Timestamp
     </th>
     <th style="width: 2%">
@@ -218,7 +327,95 @@ async function addMatchTypeTable(player, matchType) {
 </tr>
 `;
 
+    if(matches.length > 0) {
+        // found some matches
+        for(match of matches) {
+            //console.log(match);
+
+            // get players for team 1
+            let team0String = "";
+            for(p of match.teams[0]) {
+                let pl = await getPlayerSync(p.id);
+                if(pl != null) {
+                    team0String += ` <a href='/player?q=${pl._id}'>${pl.name}</a>,`
+                }
+            }
+            if(team0String.length > 0) {
+                // erase last comma
+                team0String = team0String.replace(/,$/,"");
+            }
+            // get players for team 2
+            let team1String = "";
+            for(p of match.teams[1]) {
+                let pl = await getPlayerSync(p.id);
+                if(pl != null) {
+                    team1String += ` <a href='/player?q=${pl._id}'>${pl.name}</a>,`
+                }
+            }
+            if(team1String.length > 0) {
+                // erase last comma
+                team1String = team1String.replace(/,$/,"");
+            }
+            const date = new Date(match.timestamp);
+            let winningTeamStr;
+            if(match.winningTeam < 0) {
+                // match canceled or match result was undone
+                if(match.canceled) {
+                    winningTeamStr = 'Canceled';
+                }
+                else {
+                    winningTeamStr = 'Not reported';
+                }
+            }
+            else {
+                winningTeamStr = `Team ${match.winningTeam+1}`;
+            }
+            pStr += `<tr>
+    <td>
+        ${date.getUTCMonth()+1}/${date.getUTCDate()}/${date.getUTCFullYear()} ${date.getUTCHours()}:${date.getUTCMinutes()} UTC
+    </td>
+    <td>
+        ${match.id}
+    </td>
+    <td>
+        ${team0String}
+    </td>
+    <td>
+        ${team1String}
+    </td>
+    <td>
+        ${winningTeamStr}
+    </td>
+    <td>
+        ${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(3)}
+    </td>
+
+    </tr>`
+        }
+    }
+
+    pStr += '</table>'
+
     return pStr;
+}
+
+function getPlayerRankIcon(matchTypeStats) {
+    let best = RANKS[0]; // best rank for this player so far
+    if((matchTypeStats.wins + matchTypeStats.losses) < Rating.NUMBER_OF_PLACEMENT_MATCHES) {
+        return UNRANKED; // player is unranked
+    }
+    else {
+        // get the icon for this player's rank
+        for (r of RANKS) {
+            if(matchTypeStats.rating > r.min) {
+                best = r;
+            }
+            else {
+                break;
+            }
+        }
+    }
+    return best;
 }
 
 function handleDataBaseError(dberr, logMessage, exitProcess) {
@@ -284,6 +481,7 @@ function showHelp(req, res) {
 <html>
 <head>
     <style>
+        ${HEADER_STYLE}
         .cmd {
             font-weight: bold;
         }
@@ -371,21 +569,7 @@ function showLeaderboard(req, res, sort) {
 <html>
 <head>
 <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
-
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
-
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
+${HEADER_STYLE}
 </style>
 </head>
 <body>
@@ -409,21 +593,7 @@ async function showPlayer(req, res, player) {
 <html>
 <head>
 <style>
-table {
-  font-family: arial, sans-serif;
-  border-collapse: collapse;
-  width: 100%;
-}
-
-td, th {
-  border: 1px solid #dddddd;
-  text-align: left;
-  padding: 8px;
-}
-
-tr:nth-child(even) {
-  background-color: #dddddd;
-}
+${HEADER_STYLE}
 </style>
 </head>
 <body>`;
@@ -436,120 +606,6 @@ tr:nth-child(even) {
     pStr += await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY);
     pStr += await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY);
     pStr += await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY);
-
-    // build query for player matches
-    let query = {$or: []};
-    for(timestamp in player.stats[Player.SIX_MANS_PROPERTY].matches) {
-        query.$or.push({timestamp:Number(timestamp), id:player.stats[Player.SIX_MANS_PROPERTY].matches[timestamp]});
-    }
-
-    for(timestamp in player.stats[Player.FOUR_MANS_PROPERTY].matches) {
-        query.$or.push({timestamp:Number(timestamp), id:player.stats[Player.FOUR_MANS_PROPERTY].matches[timestamp]});
-    }
-
-    for(timestamp in player.stats[Player.TWO_MANS_PROPERTY].matches) {
-        query.$or.push({timestamp:Number(timestamp), id:player.stats[Player.TWO_MANS_PROPERTY].matches[timestamp]});
-    }
-
-    var matches = [];
-
-    if(query.$or.length > 0) {
-        // need to query for something
-        try{
-            matches = await db.collection('matches').find(query).toArray();
-        }
-        catch(err) {
-            console.error(err)
-        }
-    }
-
-
-    if(matches.length > 0) {
-        // found some matches
-        for(match of matches) {
-            //console.log(match);
-            var thisMatchType;
-            switch(match.teamSize) {
-                /*
-                case config.SIX_MANS_TEAM_SIZE:
-                    matchType = Player.SIX_MANS_PROPERTY;
-                    break;
-                */
-                case config.FOUR_MANS_TEAM_SIZE:
-                    thisMatchType = Player.FOUR_MANS_PROPERTY;
-                    break;
-
-                case config.TWO_MANS_TEAM_SIZE:
-                    thisMatchType = Player.TWO_MANS_PROPERTY;
-                    break;
-                default:
-                    thisMatchType = Player.SIX_MANS_PROPERTY;
-            }
-
-            // get players for team 1
-            let team0String = "";
-            for(p of match.teams[0]) {
-                let pl = await getPlayerSync(p.id);
-                if(pl != null) {
-                    team0String += ` <a href='/player?q=${pl._id}'>${pl.name}</a>,`
-                }
-            }
-            if(team0String.length > 0) {
-                // erase last comma
-                team0String = team0String.replace(/,$/,"");
-            }
-            // get players for team 2
-            let team1String = "";
-            for(p of match.teams[1]) {
-                let pl = await getPlayerSync(p.id);
-                if(pl != null) {
-                    team1String += ` <a href='/player?q=${pl._id}'>${pl.name}</a>,`
-                }
-            }
-            if(team1String.length > 0) {
-                // erase last comma
-                team1String = team1String.replace(/,$/,"");
-            }
-            const date = new Date(match.timestamp);
-            let winningTeamStr;
-            if(match.winningTeam < 0) {
-                // match canceled or match result was undone
-                if(match.canceled) {
-                    winningTeamStr = 'Canceled';
-                }
-                else {
-                    winningTeamStr = 'Not reported';
-                }
-            }
-            else {
-                winningTeamStr = `Team ${match.winningTeam+1}`;
-            }
-            pStr += `<tr>
-    <td>
-        ${date.getUTCMonth()+1}/${date.getUTCDate()}/${date.getUTCFullYear()} ${date.getUTCHours()}:${date.getUTCMinutes()} UTC
-    </td>
-    <td>
-        ${match.id}
-    </td>
-    <td>
-        ${team0String}
-    </td>
-    <td>
-        ${team1String}
-    </td>
-    <td>
-        ${winningTeamStr}
-    </td>
-    <td>
-        ${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(3)}
-    </td>
-
-</tr>`
-        }
-    }
-
-    pStr += '</table>'
-
 
     pStr += `</body>
 </html>`
@@ -634,6 +690,18 @@ app.get('/help', (req, res) => {
     showHelp(req, res);
 });
 
+app.get('/icons/*.png', (req, res) => {
+    let filePath = path.join(__dirname, req.path);
+    fs.stat(filePath, (err, stat) => {
+        if(err) {
+            res.send(`Error: requested file '${req.path}' does not exist.`);
+        }
+        else {
+            res.sendFile(filePath);
+        }
+    });
+});
+
 app.get('/leaderboard', (req, res) => {
     // do any request validation here
 
@@ -693,9 +761,5 @@ app.get('/player', (req, res) => {
     }
 
 });
-
-
-
-
 
 app.listen(port, () => console.log(`Listening at  http://localhost:${port}`));
