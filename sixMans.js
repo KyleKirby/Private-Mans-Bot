@@ -440,7 +440,7 @@ function cancelMatch(msg) {
                 let update = {};
                 update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = 0;
 
-                db.collection('players').updateOne(query, {$set: newMatchObject}, (err, res) => {
+                db.collection('players').updateOne(query, {$set: update}, (err, res) => {
                     if(err) {
                         handleDataBaseError(err, 'Error updating player in players collection\n', false);
                     }
