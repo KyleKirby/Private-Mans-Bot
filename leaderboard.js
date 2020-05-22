@@ -514,16 +514,8 @@ function showHelp(req, res) {
     <div class="cmd">${userCommandPrefix}help</div>
     -display help URL</br>
 </br>
-    <div class="cmd">${userCommandPrefix}l ${userCommandPrefix}l6 ${userCommandPrefix}leave</div>
-    -remove yourself from the 6 mans queue</br>
-</br>
-    <div class="cmd">${userCommandPrefix}l4</div>
-    -remove yourself from the 4 mans queue</br>
-</br>
-    <div class="cmd">${userCommandPrefix}l2</div>
-    -remove yourself from the 2 mans queue</br>
-</br>
-
+    <div class="cmd">${userCommandPrefix}l ${userCommandPrefix}leave</div>
+    -remove yourself from queue</br>
 </br>
     <div class="cmd">${userCommandPrefix}lb ${userCommandPrefix}leaderboard</div>
     -display leaderboard URL</br>
