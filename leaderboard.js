@@ -199,7 +199,10 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         <th style="width: 25%">` + rate + ` <a href='/leaderboard?sort=winpercentage'>&#8659;</a> </th>
     </tr>`;
     for(entry of players) {
-
+        if((entry.stats[matchType].wins + entry.stats[matchType].losses) === 0) {
+            // if this player has not played any matches of this type (this season), skip them
+            continue;
+        }
         rank = entry.rank.toString();
 
         const playerRank = getPlayerRankIcon(entry.stats[nextMatchType]);
