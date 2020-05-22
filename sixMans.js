@@ -146,19 +146,6 @@ module.exports = {
             displayHelp(msg);
             break;
 
-            case 'l2':
-            removeUserFromTwoMansQueue(msg);
-            break;
-
-            case 'l4':
-            removeUserFromFourMansQueue(msg);
-            break;
-
-            case 'l6':
-            case 'leave':
-            removeUserFromSixMansQueue(msg);
-            break;
-
             case 'l':
             case 'leave':
             removeUserFromQueue(msg);
@@ -984,97 +971,63 @@ function rankPlayersTwo(p1,p2) {
         return 0;
 }
 
-function removeUserFromFourMansQueue(msg) {
-    var i = 0;
-    let removedFromQueue = false;
-    for (m of queueFour) {
-        if(m.id === msg.member.id)
-        {
-            // remove this member from the queue
-            queueFour.splice(i, 1);
-            removedFromQueue = true;
-            break;
-        }
-        i++;
-    }
-    if(removedFromQueue) {
-        var s = `>>> Removed <@${msg.member.id}> from the 4 mans queue.\n`;
-        if(queueFour.length > 0) {
-            s += `Users in queue: ${queueString()}`;
-        }
-        else {
-            s += `No users left in queue.`
-        }
-        msg.channel.send(s);
-    }
-}
-
-function removeUserFromSixMansQueue(msg) {
-    var i = 0;
-    let removedFromQueue = false;
+function removeUserFromQueue(msg) {
+    // find if the user is in queue, if they are in one them remove them
+    let i = 0;
     for (m of queue) {
         if(m.id === msg.member.id)
         {
             // remove this member from the queue
             queue.splice(i, 1);
-            removedFromQueue = true;
-            break;
+            var s = `>>> Removed <@${msg.member.id}> from the 6 mans queue.\n`;
+            if(queue.length > 0) {
+                s += `Users in queue: ${queueString()}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
         }
         i++;
     }
-    if(removedFromQueue) {
-        var s = `>>> Removed <@${msg.member.id}> from the 6 mans queue.\n`;
-        if(queue.length > 0) {
-            s += `Users in queue: ${queueString()}`;
+    i = 0;
+    for (m of queueFour) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueFour.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the 4 mans queue.\n`;
+            if(queueFour.length > 0) {
+                s += `Users in queue: ${queueFourString()}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
         }
-        else {
-            s += `No users left in queue.`
-        }
-        msg.channel.send(s);
+        i++;
     }
-}
-
-function removeUserFromTwoMansQueue(msg) {
-    var i = 0;
-    let removedFromQueue = false;
+    i = 0;
     for (m of queueTwo) {
         if(m.id === msg.member.id)
         {
             // remove this member from the queue
             queueTwo.splice(i, 1);
-            removedFromQueue = true;
-            break;
+            var s = `>>> Removed <@${msg.member.id}> from the 2 mans queue.\n`;
+            if(queueTwo.length > 0) {
+                s += `Users in queue: ${queueTwoString()}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
         }
         i++;
     }
-    if(removedFromQueue) {
-        var s = `>>> Removed <@${msg.member.id}> from the 2 mans queue.\n`;
-        if(queueTwo.length > 0) {
-            s += `Users in queue: ${queueTwoString()}`;
-        }
-        else {
-            s += `No users left in queue.`
-        }
-        msg.channel.send(s);
-    }
-}
-
-function removeUserFromQueue(msg) {
-    let args = msg.content.split(' ');
-    var arg = '';
-    if(args.length > 1) {
-        arg = args[1];
-    }
-    if(arg === '' || arg === '6') {
-        // removing from 6 mans queue
-        removeUserFromSixMansQueue(msg);
-    }
-    else if(arg === '4') {
-        removeUserFromFourMansQueue(msg);
-    }
-    else if(arg === '2') {
-        removeUserFromTwoMansQueue(msg);
-    }
+    // user was not in any queues
 }
 
 async function reportMatchResult(msg) {
@@ -1216,8 +1169,8 @@ async function reportMatchResult(msg) {
                                                 throw err;
                                             else {
                                                 msg.channel.send(`>>> Match ID ${matchId} result:
-Team 1 ${team0String}: ${userMentionString(match.teams[0])}
-Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
+Orange Team ${team0String}: ${userMentionString(match.teams[0])}
+Blue Team ${team1String}: ${userMentionString(match.teams[1])}`);
                                             }
 
                                         });
@@ -1290,8 +1243,8 @@ Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
         return;
     }
     msg.channel.send(`>>> Match ID ${matchId} result:
-Team 1 ${team0String}: ${userMentionString(match.teams[0])}
-Team 2 ${team1String}: ${userMentionString(match.teams[1])}`);
+Orange Team ${team0String}: ${userMentionString(match.teams[0])}
+Blue Team ${team1String}: ${userMentionString(match.teams[1])}`);
 
     match.reported = true;
 
@@ -1583,13 +1536,15 @@ function startRandomMatch(msg, match) {
 async function startMatch(msg, match) {
     match.start();
 
+    const MAX_VOICE_CHANNEL_ID = 69;
+
     const playersByRank = await orderPlayersByRank(match.players, match.teamSize); // have the highest ranked player create the private match
 
     const matchCreator = playersByRank[0].player;
 
     let matchMsg = `>>> Match ID ${match.id}; teams have been created.
-Team 1: ${userMentionString(match.teams[0])}
-Team 2: ${userMentionString(match.teams[1])}
+Orange Team: ${userMentionString(match.teams[0])}
+Blue Team: ${userMentionString(match.teams[1])}
 
 <@${matchCreator.id}> will create the private match.
 Name: ${match.name}
@@ -1604,10 +1559,10 @@ Password: ${match.password}`;
 
 
     // now create voice channels for this match
-    msg.guild.channels.create(`Orange ${match.id}`, options)
+    msg.guild.channels.create(`Orange ${match.id % MAX_VOICE_CHANNEL_ID}`, options)
     .then(chan1 => {
         match.voiceChannels[0] = chan1;
-        msg.guild.channels.create(`Blue ${match.id}`, options)
+        msg.guild.channels.create(`Blue ${match.id % MAX_VOICE_CHANNEL_ID}`, options)
         .then(chan2 => {
             match.voiceChannels[1] = chan2;
             for(p of match.teams[0]) {
