@@ -44,7 +44,7 @@ process.on('exit', handleExit);
 
 const HEADER_STYLE = `
 body {
-    background-color: #000040;
+    background-color: #171717;
     color: #ffffff;
 }
 
@@ -55,29 +55,29 @@ table {
 }
 
 td, th {
-  border: 1px solid #000075;
+  border: 1px solid #3c3c3c;
   text-align: left;
   padding: 8px;
 }
 
 tr:nth-child(even) {
-  background-color: #000090;
+  background-color: #2c2c2c;
 }
 
 a:link {
-    color: #6666ff;
+    color: #ffffff;
 }
 
 a:visited {
-    color: #6666ff;
+    color: #ffffff;
 }
 
 a:hover {
-    color: #6666ff;
+    color: #ffffff;
 }
 
 a:active {
-    color: #6666ff;
+    color: #ffffff;
 }
 `;
 
@@ -231,8 +231,11 @@ function addLeaderboardTable(players, sort, nextMatchType) {
     return lbStr;
 }
 
+const teamNames = ["Orange Team", "Blue Team"];
+
 async function addMatchTypeTable(player, thisMatchType) {
     let query = {$or: []};
+
     for(timestamp in player.stats[thisMatchType].matches) {
         query.$or.push({timestamp:Number(timestamp), id:player.stats[thisMatchType].matches[timestamp]});
     }
@@ -313,10 +316,10 @@ async function addMatchTypeTable(player, thisMatchType) {
         Match ID
     </th>
     <th style="width: 25%">
-        Team 1
+        Orange Team
     </th>
     <th style="width: 25%">
-        Team 2
+        Blue Team
     </th>
     <th style="width: 5%">
         Winning Team
@@ -368,7 +371,7 @@ async function addMatchTypeTable(player, thisMatchType) {
                 }
             }
             else {
-                winningTeamStr = `Team ${match.winningTeam+1}`;
+                winningTeamStr = `${teamNames[match.winningTeam]}`;
             }
             pStr += `<tr>
     <td>
@@ -480,6 +483,9 @@ function showHelp(req, res) {
     const helpString = `<!DOCTYPE html>
 <html>
 <head>
+    <title>
+        Private Mans Help
+    </title>
     <style>
         ${HEADER_STYLE}
         .cmd {
@@ -568,17 +574,24 @@ function showLeaderboard(req, res, sort) {
             var lbStr = `<!DOCTYPE html>
 <html>
 <head>
+<title>
+    MAN Leaderboard
+</title>
 <style>
 ${HEADER_STYLE}
 </style>
 </head>
 <body>
 <span style="float:right">
+
     Contents:</br>
     <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
     <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
     <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
-</span>
+</span><br>
+<h1 style="text-align: center; width: 100%">
+    Middle Age Noobs Leaderboard
+</h1>
 `;
             lbStr += addLeaderboardTable(result, sort, Player.SIX_MANS_PROPERTY);
             lbStr += addLeaderboardTable(result, sort, Player.FOUR_MANS_PROPERTY);
@@ -595,6 +608,9 @@ async function showPlayer(req, res, player) {
     var pStr = `<!DOCTYPE html>
 <html>
 <head>
+<title>
+    ${player.name} stats
+</title>
 <style>
 ${HEADER_STYLE}
 </style>
