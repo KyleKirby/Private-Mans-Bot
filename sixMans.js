@@ -5,12 +5,6 @@ TODO:
     -goals?
     -user reporting?
 
--require users to 'ready' up upon the queue popping?
-    -avoids users being stuck in a game with someone afk
-    -would need a timer for this
-
--use config file for handling constants such as the channel IDs
-
 */
 
 const config = require('./config.js');
@@ -64,11 +58,11 @@ const BALANCED_VOTE = 3;
 
 var userCommandPrefix = '.';
 
-var queue = []; // 6 mans queue
+var queue = []; // standard queue
 
-var queueFour = []; // 4 mans queue
+var queueFour = []; // doubles queue
 
-var queueTwo = []; // 2 mans queue
+var queueTwo = []; // solo duel queue
 
 var nextMatchId = 0;
 const MAX_MATCH_ID = Number.MAX_SAFE_INTEGER; // match id will wrap to 0 upon reaching this value, so this is also the max concurrent matches
@@ -164,24 +158,17 @@ module.exports = {
             newCommand(msg);
             break;
 
-            case 'q':
-            case 'queue':
-            addUserToQueue(msg);
+
+            case '1':
+            addToSoloDuelQueue(msg);
             break;
 
-            case 'q2':
-            case 'queue2':
-            addToTwoMansQueue(msg);
+            case '2':
+            addToDoublesQueue(msg);
             break;
 
-            case 'q4':
-            case 'queue4':
-            addToFourMansQueue(msg);
-            break;
-
-            case 'q6':
-            case 'queue6':
-            addToSixMansQueue(msg);
+            case '3':
+            addToStandardQueue(msg);
             break;
 
             case 'r':
@@ -216,7 +203,7 @@ module.exports.getCommandPrefix = function() {
     return userCommandPrefix;
 }
 
-function addToFourMansQueue(msg) {
+function addToDoublesQueue(msg) {
     if(msg.member.id in membersInMatches) {
         // user is already in a match, ignore
         return;
@@ -244,7 +231,7 @@ function addToFourMansQueue(msg) {
     }
 
     queueFour.push(msg.member);
-    var s = `>>> Added <@${msg.member.id}> to the 4 mans queue.
+    var s = `>>> Added <@${msg.member.id}> to the doubles queue.
 Users in queue: ${queueFourString()}\n`;
 
     if(queueFour.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
@@ -260,51 +247,7 @@ The match will be started with the highest vote if 2 minutes have elapsed withou
     msg.channel.send(s);
 }
 
-function addToSixMansQueue(msg) {
-    if(msg.member.id in membersInMatches) {
-        // user is already in a match, ignore
-        return;
-    }
-    for (m of queue) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueFour) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueTwo) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-
-    queue.push(msg.member);
-    var s = `>>> Added <@${msg.member.id}> to the 6 mans queue.
-Users in queue: ${queueString()}\n`;
-
-    if(queue.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
-        // the queue is filled!
-        // now we need to make teams
-        createMatch(msg, config.SIX_MANS_TEAM_SIZE);
-        s += `Match is ready to start.
-Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
-Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
-Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
-The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
-    }
-    msg.channel.send(s);
-}
-
-function addToTwoMansQueue(msg) {
+function addToSoloDuelQueue(msg) {
     if(msg.member.id in membersInMatches) {
         // user is already in a match, ignore
         return;
@@ -333,7 +276,7 @@ function addToTwoMansQueue(msg) {
     }
 
     queueTwo.push(msg.member);
-    var s = `>>> Added <@${msg.member.id}> to the 2 mans queue.
+    var s = `>>> Added <@${msg.member.id}> to the solo duel queue.
 Users in queue: ${queueTwoString()}\n`;
 
     if(queueTwo.length === config.TWO_MANS_MAX_QUEUE_SIZE) {
@@ -350,20 +293,48 @@ Users in queue: ${queueTwoString()}\n`;
         msg.channel.send(s);
 }
 
-function addUserToQueue(msg) {
-    let args = msg.content.split(' ');
-    if(args.length === 1) {
-        // adding to 6 mans queue
-        addToSixMansQueue(msg);
+function addToStandardQueue(msg) {
+    if(msg.member.id in membersInMatches) {
+        // user is already in a match, ignore
+        return;
     }
-    else if(args.length === 2) {
-        if(args[1] === '4')
-            addToFourMansQueue(msg);
-        else if(args[1] === '6')
-            addToSixMansQueue(msg);
-        else if(args[1] === '2')
-            addToTwoMansQueue(msg);
+    for (m of queue) {
+        if(m.id === msg.member.id)
+        {
+            // member is already in queue
+            return;
+        }
     }
+    for (m of queueFour) {
+        if(m.id === msg.member.id)
+        {
+            // member is already in queue
+            return;
+        }
+    }
+    for (m of queueTwo) {
+        if(m.id === msg.member.id)
+        {
+            // member is already in queue
+            return;
+        }
+    }
+
+    queue.push(msg.member);
+    var s = `>>> Added <@${msg.member.id}> to the standard queue.
+Users in queue: ${queueString()}\n`;
+
+    if(queue.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
+        // the queue is filled!
+        // now we need to make teams
+        createMatch(msg, config.SIX_MANS_TEAM_SIZE);
+        s += `Match is ready to start.
+Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+    }
+    msg.channel.send(s);
 }
 
 function cancelMatch(msg) {
@@ -447,35 +418,35 @@ function clearQueue(msg) {
         return;
     }
     let args = msg.content.split(' ');
-    if(args.length === 1) {
-        // clearing 6 mans queue
+    if(args.length === 1 || (args.length === 2 && args[1] === '3')) {
+        // clearing standard queue
         if(queue.length > 0) {
             queue = [];
-            msg.channel.send(`>>> Cleared 6 mans queue.`);
+            msg.channel.send(`>>> Cleared standard queue.`);
         }
         else {
-            msg.channel.send(`>>> 6 mans queue is already empty.`);
+            msg.channel.send(`>>> Standard queue is already empty.`);
         }
 
     }
-    else if(args.length === 2 && args[1] === '4') {
-        // clearing 4 mans queue
+    else if(args.length === 2 && args[1] === '2') {
+        // clearing doubles queue
         if(queueFour.length > 0) {
             queueFour = [];
-            msg.channel.send(`>>> Cleared 4 mans queue.`);
+            msg.channel.send(`>>> Cleared doubles queue.`);
         }
         else {
-            msg.channel.send(`>>> 4 mans queue is already empty.`);
+            msg.channel.send(`>>> Doubles queue is already empty.`);
         }
     }
-    else if(args.length === 2 && args[1] === '2') {
-        // clearing 2 mans queue
+    else if(args.length === 2 && args[1] === '1') {
+        // clearing solo duel queue
         if(queueTwo.length > 0) {
             queueTwo = [];
-            msg.channel.send(`>>> Cleared 2 mans queue.`);
+            msg.channel.send(`>>> Cleared solo duel queue.`);
         }
         else {
-            msg.channel.send(`>>> 2 mans queue is already empty.`);
+            msg.channel.send(`>>> Solo duel queue is already empty.`);
         }
     }
     else if(args.length === 2 && args[1] === 'all') {
@@ -484,20 +455,20 @@ function clearQueue(msg) {
         }
         else {
             let s = '>>> ';
-            // clearing 6 mans queue
+            // clearing standard queue
             if(queue.length > 0) {
                 queue = [];
-                s += `Cleared 6 mans queue.\n`;
+                s += `Cleared standard queue.\n`;
             }
-            // clearing 4 mans queue
+            // clearing doubles queue
             if(queueFour.length > 0) {
                 queueFour = [];
-                s += `Cleared 4 mans queue.\n`;
+                s += `Cleared doubles queue.\n`;
             }
-            // clearing 2 mans queue
+            // clearing solo duel queue
             if(queueTwo.length > 0) {
                 queueTwo = [];
-                s += `Cleared 2 mans queue.\n`;
+                s += `Cleared solo duel queue.\n`;
             }
             msg.channel.send(s);
         }
@@ -979,7 +950,7 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queue.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the 6 mans queue.\n`;
+            var s = `>>> Removed <@${msg.member.id}> from the standard queue.\n`;
             if(queue.length > 0) {
                 s += `Users in queue: ${queueString()}`;
             }
@@ -997,7 +968,7 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueFour.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the 4 mans queue.\n`;
+            var s = `>>> Removed <@${msg.member.id}> from the doubles queue.\n`;
             if(queueFour.length > 0) {
                 s += `Users in queue: ${queueFourString()}`;
             }
@@ -1015,7 +986,7 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueTwo.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the 2 mans queue.\n`;
+            var s = `>>> Removed <@${msg.member.id}> from the solo duel queue.\n`;
             if(queueTwo.length > 0) {
                 s += `Users in queue: ${queueTwoString()}`;
             }
@@ -1505,13 +1476,13 @@ function showQueueStatus(msg) {
     else {
         var s = '>>> ';
         if(queue.length > 0) {
-            s += `Users in 6 mans queue: ${queueString()}\n`;
+            s += `Users in standard queue: ${queueString()}\n`;
         }
         if(queueFour.length > 0) {
-            s += `Users in 4 mans queue: ${queueFourString()}\n`;
+            s += `Users in doubles queue: ${queueFourString()}\n`;
         }
         if(queueTwo.length > 0) {
-            s += `Users in 2 mans queue: ${queueTwoString()}\n`;
+            s += `Users in solo duel queue: ${queueTwoString()}\n`;
         }
         msg.channel.send(s);
     }
