@@ -176,13 +176,13 @@ function addLeaderboardTable(players, sort, nextMatchType) {
     let lbHeaderText;
     switch(nextMatchType) {
         case Player.FOUR_MANS_PROPERTY:
-            lbHeaderText = 'Four Mans';
+            lbHeaderText = 'Doubles';
             break;
         case Player.TWO_MANS_PROPERTY:
-            lbHeaderText = 'Two Mans';
+            lbHeaderText = 'Solo Duel';
             break;
         default:
-            lbHeaderText = 'Six Mans';
+            lbHeaderText = 'Standard';
     }
     let lbStr = `
 <h2 id="${nextMatchType}" style="float: left; width: 100%;">
@@ -261,13 +261,13 @@ async function addMatchTypeTable(player, thisMatchType) {
     let headerText;
     switch(thisMatchType) {
         case Player.SIX_MANS_PROPERTY:
-            headerText = 'Six mans';
+            headerText = 'Standard';
             break;
         case Player.FOUR_MANS_PROPERTY:
-            headerText = 'Four mans';
+            headerText = 'Doubles';
             break;
         case Player.TWO_MANS_PROPERTY:
-            headerText = 'Two mans';
+            headerText = 'Solo Duel';
             break;
     }
 
@@ -497,6 +497,8 @@ function showHelp(req, res) {
     </style>
 </head>
 <body>
+    Note: parameters wrapped in &lt; &gt; are required. Parameters wrapped in [ ] are optional. <br>
+    <br>
     Valid commands are:</br>
 </br>
     <div class="cmd">${userCommandPrefix}b ${userCommandPrefix}balanced</div>
@@ -508,10 +510,10 @@ function showHelp(req, res) {
     <div class="cmd">${userCommandPrefix}cancel</div>
     -vote to cancel the match you are currently in</br>
 </br>
-    <span class="cmd">${userCommandPrefix}clear</span> [4 | 2 | all]<br>
+    <span class="cmd">${userCommandPrefix}clear</span> [3 | 2 | 1 | all]<br>
     -clear out the current queue</br>
-    -without any additional parameters this will clear the 6 man queue</br>
-    -4 and 2 are optional parameters that specify the 4 man and 2 man queues respectively</br>
+    -without any additional parameters this will clear the standard queue</br>
+    -2 and 1 are optional parameters that specify the doubles and solo duel queues respectively</br>
     -all is another optional parameter that will clear all queues</br>
 </br>
     <div class="cmd">${userCommandPrefix}help</div>
@@ -529,14 +531,14 @@ function showHelp(req, res) {
     <div class="cmd">${userCommandPrefix}new season</div>
     -reset player stats for a new season</br>
 </br>
-    <div class="cmd">${userCommandPrefix}q ${userCommandPrefix}q6 ${userCommandPrefix}queue ${userCommandPrefix}queue6</div>
-    -add yourself to the 6 mans queue</br>
+    <div class="cmd">${userCommandPrefix}3</div>
+    -add yourself to the standard (3v3) queue</br>
 </br>
-    <div class="cmd">${userCommandPrefix}q4 ${userCommandPrefix}queue4</div>
-    -add yourself to the 4 mans queue</br>
+    <div class="cmd">${userCommandPrefix}2</div>
+    -add yourself to the doubles (2v2) queue</br>
 </br>
-    <div class="cmd">${userCommandPrefix}q2 ${userCommandPrefix}queue2</div>
-    -add yourself to the 2 mans queue</br>
+    <div class="cmd">${userCommandPrefix}1</div>
+    -add yourself to the solo duel (1v1) queue</br>
 </br>
     <div class="cmd">${userCommandPrefix}r ${userCommandPrefix}random</div>
     -vote for random teams</br>
@@ -580,9 +582,9 @@ ${HEADER_STYLE}
 <span style="float:right">
 
     Contents:</br>
-    <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
-    <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
-    <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
+    <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Standard</a><br>
+    <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Doubles</a><br>
+    <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Solo Duel</a><br>
 </span><br>
 <h1 style="text-align: center; width: 100%">
     Middle Age Noobs Leaderboard
@@ -619,9 +621,9 @@ ${HEADER_STYLE}
     </h1>
     <span style="float:right">
         Contents:</br>
-        <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Six Mans</a><br>
-        <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Four Mans</a><br>
-        <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Two Mans</a><br>
+        <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Standard</a><br>
+        <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Doubles</a><br>
+        <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Solo Duel</a><br>
     </span>
 </span>
 </br>
