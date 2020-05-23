@@ -505,6 +505,15 @@ function showHelp(req, res) {
     <br>
     Valid commands are:</br>
 </br>
+<div class="cmd">${userCommandPrefix}3</div>
+-add yourself to the standard (3v3) queue</br>
+</br>
+<div class="cmd">${userCommandPrefix}2</div>
+-add yourself to the doubles (2v2) queue</br>
+</br>
+<div class="cmd">${userCommandPrefix}1</div>
+-add yourself to the solo duel (1v1) queue</br>
+</br>
     <div class="cmd">${userCommandPrefix}b ${userCommandPrefix}balanced</div>
     -vote for balanced teams</br>
 </br>
@@ -534,15 +543,6 @@ function showHelp(req, res) {
 </br>
     <div class="cmd">${userCommandPrefix}new season</div>
     -reset player stats for a new season</br>
-</br>
-    <div class="cmd">${userCommandPrefix}3</div>
-    -add yourself to the standard (3v3) queue</br>
-</br>
-    <div class="cmd">${userCommandPrefix}2</div>
-    -add yourself to the doubles (2v2) queue</br>
-</br>
-    <div class="cmd">${userCommandPrefix}1</div>
-    -add yourself to the solo duel (1v1) queue</br>
 </br>
     <div class="cmd">${userCommandPrefix}r ${userCommandPrefix}random</div>
     -vote for random teams</br>
