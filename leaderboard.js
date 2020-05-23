@@ -144,6 +144,10 @@ function addLeaderboardTable(players, sort, nextMatchType) {
 
     let count = 1;
     for(entry of players) {
+        if((entry.stats[matchType].wins + entry.stats[matchType].losses) === 0) {
+            // if this player has not played any matches of this type (this season), skip them
+            continue;
+        }
         entry.rank = count;
         count++;
     }
