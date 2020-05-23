@@ -1140,8 +1140,8 @@ async function reportMatchResult(msg) {
                                                 throw err;
                                             else {
                                                 msg.channel.send(`>>> Match ID ${matchId} result:
-Orange Team ${team0String}: ${userMentionString(match.teams[0])}
-Blue Team ${team1String}: ${userMentionString(match.teams[1])}`);
+Blue Team ${team0String}: ${userMentionString(match.teams[0])}
+Orange Team ${team1String}: ${userMentionString(match.teams[1])}`);
                                             }
 
                                         });
@@ -1214,8 +1214,8 @@ Blue Team ${team1String}: ${userMentionString(match.teams[1])}`);
         return;
     }
     msg.channel.send(`>>> Match ID ${matchId} result:
-Orange Team ${team0String}: ${userMentionString(match.teams[0])}
-Blue Team ${team1String}: ${userMentionString(match.teams[1])}`);
+Blue Team ${team0String}: ${userMentionString(match.teams[0])}
+Orange Team ${team1String}: ${userMentionString(match.teams[1])}`);
 
     match.reported = true;
 
@@ -1514,8 +1514,8 @@ async function startMatch(msg, match) {
     const matchCreator = playersByRank[0].player;
 
     let matchMsg = `>>> Match ID ${match.id}; teams have been created.
-Orange Team: ${userMentionString(match.teams[0])}
-Blue Team: ${userMentionString(match.teams[1])}
+Blue Team: ${userMentionString(match.teams[0])}
+Orange Team: ${userMentionString(match.teams[1])}
 
 <@${matchCreator.id}> will create the private match.
 Name: ${match.name}
@@ -1530,10 +1530,10 @@ Password: ${match.password}`;
 
 
     // now create voice channels for this match
-    msg.guild.channels.create(`Orange ${match.id % MAX_VOICE_CHANNEL_ID}`, options)
+    msg.guild.channels.create(`Blue ${match.id % MAX_VOICE_CHANNEL_ID}`, options)
     .then(chan1 => {
         match.voiceChannels[0] = chan1;
-        msg.guild.channels.create(`Blue ${match.id % MAX_VOICE_CHANNEL_ID}`, options)
+        msg.guild.channels.create(`Orange ${match.id % MAX_VOICE_CHANNEL_ID}`, options)
         .then(chan2 => {
             match.voiceChannels[1] = chan2;
             for(p of match.teams[0]) {

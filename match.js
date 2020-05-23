@@ -10,8 +10,8 @@ const CAPTAIN_VOTE = 1;
 const RANDOM_VOTE = 2;
 const BALANCED_VOTE = 3;
 
-// team 0 = orange
-// team 1 = blue
+// team 0 = blue
+// team 1 = orange
 
 function Match(playerList, matchId, matchTeamSize) {
 

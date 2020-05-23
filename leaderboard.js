@@ -238,7 +238,7 @@ function addLeaderboardTable(players, sort, nextMatchType) {
     return lbStr;
 }
 
-const teamNames = ["Orange Team", "Blue Team"];
+const teamNames = ["Blue Team", "Orange Team"];
 
 async function addMatchTypeTable(player, thisMatchType) {
     let query = {$or: []};
@@ -323,10 +323,10 @@ async function addMatchTypeTable(player, thisMatchType) {
         Match ID
     </th>
     <th style="width: 25%">
-        Orange Team
+        Blue Team
     </th>
     <th style="width: 25%">
-        Blue Team
+        Orange Team
     </th>
     <th style="width: 5%">
         Winning Team
