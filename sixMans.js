@@ -1504,6 +1504,8 @@ function startRandomMatch(msg, match) {
     startMatch(msg, match);
 }
 
+const teamNames = ["Blue Team", "Orange Team"];
+
 async function startMatch(msg, match) {
     match.start();
 
@@ -1513,9 +1515,16 @@ async function startMatch(msg, match) {
 
     const matchCreator = playersByRank[0].player;
 
+    const picksThirdGameIndex = Math.floor(Math.random() * Math.floor(2)); // 0 or 1 value determining who gets to pick the region for game 3
+
     let matchMsg = `>>> Match ID ${match.id}; teams have been created.
 Blue Team: ${userMentionString(match.teams[0])}
 Orange Team: ${userMentionString(match.teams[1])}
+
+Matches are Best out of 3.
+Blue Team will pick the region for game 1.
+Orange Team will pick the region for game 2.
+${teamNames[picksThirdGameIndex]} will pick the region for game 3.
 
 <@${matchCreator.id}> will create the private match.
 Name: ${match.name}
