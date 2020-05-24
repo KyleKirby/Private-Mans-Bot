@@ -136,6 +136,12 @@ module.exports = {
             clearQueue(msg);
             break;
 
+            case 'cf':
+            case 'coinflip':
+            case 'flip':
+            flipCoin(msg);
+            break;
+
             case 'help':
             displayHelp(msg);
             break;
@@ -643,6 +649,21 @@ function endMatch(msg, match) {
     for(player of match.players) {
         delete membersInMatches[player.id];
     }
+
+}
+
+function flipCoin(msg) {
+    let coinSides = ['Orange', 'Blue'];
+
+    const result = Math.floor(Math.random() * Math.floor(2)); // 0 or 1 value
+    let args = msg.content.split(' ');
+    if(args.length === 3) {
+        // users may optionally provide additional arguments
+        // first argument is the command, the second and third arguments are the two choices to flip between
+        coinSides[0] = args[1];
+        coinSides[1] = args[2];
+    }
+    msg.channel.send(`<@${msg.author.id}> ${coinSides[result]}`);
 
 }
 
