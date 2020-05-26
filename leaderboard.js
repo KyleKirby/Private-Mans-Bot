@@ -278,12 +278,26 @@ async function addMatchTypeTable(player, thisMatchType) {
     const playerRank = getPlayerRankIcon(player.stats[thisMatchType]);
     icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
 
+    let changeSymbol; // either + or -
+    let changeColor; // either red or green
+    if(player.stats[thisMatchType].lastRatingChange < 0) {
+        changeSymbol = '-';
+        changeColor = 'red';
+    }
+    else {
+        changeSymbol = '+';
+        changeColor = 'green';
+    }
+
     let pStr = `
 <h2 id="${thisMatchType}" style="float: left; width: 100%;">
     ${headerText} ${icon}
 </h2>
-<table style="width: 30%">
+<table style="width: 32%">
     <tr>
+        <th style="width: 12%">
+            Rating
+        </th>
         <th style="width: 10%">
             Season Wins
         </th>
@@ -298,6 +312,9 @@ async function addMatchTypeTable(player, thisMatchType) {
         </th>
     </tr>
     <tr>
+        <td>
+            ${player.stats[thisMatchType].rating.toFixed(2)} <span style="color: ${changeColor};">${changeSymbol}${Math.abs(player.stats[thisMatchType].lastRatingChange).toFixed(2)}</span>
+        </td>
         <td>
             ${player.stats[thisMatchType].wins}
         </td>
