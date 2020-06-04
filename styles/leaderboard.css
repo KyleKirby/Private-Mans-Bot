@@ -32,12 +32,12 @@
 }
 
 .tableTitle {
-    margin-bottom: 0px;
+    /*margin-bottom: 0px;
     margin-top: 10px;
     padding-left: 10px;
     color: black;
     text-shadow: 0px 0px 20px #fff2bd;
-    font-weight: bold;
+    font-weight: bold;*/
 }
 
 .dataTables_filter {
