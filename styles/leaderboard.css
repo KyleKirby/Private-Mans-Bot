@@ -33,6 +33,7 @@
 
 .tableTitle {
     margin-bottom: 0px;
+    margin-top: 10px;
     padding-left: 10px;
     color: black;
     text-shadow: 0px 0px 20px #fff2bd;
@@ -89,4 +90,24 @@ table.dataTable, table.dataTable th, table.dataTable td {
 
 .dataTables_filter input[type="search"]::placeholder {
     color: #00000030;
+}
+
+.navButtons {
+    margin: 0 auto;
+    width: fit-content;
+}
+
+.navButtons > .nav-pills > li.active > a, .navButtons > .nav-pills > li.active > a:focus, .navButtons > .nav-pills > li.active > a:hover {
+    color: #fff;
+    background-color: black;
+}
+
+.navButtons > .nav > li > a:focus, .navButtons > .nav > li > a:hover {
+    text-decoration: none;
+    background-color: #0c0c0ccc;
+}
+
+.navButtons >.nav-pills > li > a {
+    border-radius: 4px;
+    font-weight: bold;
 }

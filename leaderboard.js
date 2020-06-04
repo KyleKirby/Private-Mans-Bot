@@ -626,17 +626,28 @@ ${HEADER_STYLE}
     <div class="topLogo">
         <img src="/styles/images/MAN_logo.png">
         </br>
-        <span>
-            <a href='#${Player.SIX_MANS_PROPERTY}'>Standard</a> | <a href='#${Player.FOUR_MANS_PROPERTY}'>Doubles</a> | <a href='#${Player.TWO_MANS_PROPERTY}'>Solo Duel</a>
-        </span>
+        <div class="navButtons">
+            <ul class="nav nav-pills">
+	            <li class="active">
+                    <a href="#standard" data-toggle="tab">Standard</a>
+	            </li>
+	            <li>
+                    <a href="#doubles" data-toggle="tab">Doubles</a>
+	            </li>
+	            <li>
+                    <a href="#solo" data-toggle="tab">Solo Duel</a>
+	            </li>
+            </ul>
+        </div>
     </div>
+    <div class="tab-content clearfix">
 `;
-            lbStr += addLeaderboardTable(result, sort, Player.SIX_MANS_PROPERTY);
-            lbStr += addLeaderboardTable(result, sort, Player.FOUR_MANS_PROPERTY);
-            lbStr += addLeaderboardTable(result, sort, Player.TWO_MANS_PROPERTY);
+            lbStr += `<div class="tab-pane active" id="standard">` + addLeaderboardTable(result, sort, Player.SIX_MANS_PROPERTY) + `</div>`;
+            lbStr += `<div class="tab-pane" id="doubles">` + addLeaderboardTable(result, sort, Player.FOUR_MANS_PROPERTY) + `</div>`;
+            lbStr += `<div class="tab-pane" id="solo">` + addLeaderboardTable(result, sort, Player.TWO_MANS_PROPERTY) + `</div>`;
 
         }
-        lbStr += `</div></body></html>`;
+        lbStr += `</div></div></body></html>`;
         res.send(lbStr);
     });
 }
