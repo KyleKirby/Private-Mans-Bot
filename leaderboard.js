@@ -55,7 +55,7 @@ table {
 
 td, th {
   border: 1px solid #3c3c3c !important;
-  text-align: left !important;
+  text-align: center !important;
   padding: 8px !important;
 }
 
@@ -254,38 +254,35 @@ function addLeaderboardTable(players, sort, nextMatchType) {
 const teamNames = ["Blue Team", "Orange Team"];
 
 async function addMatchTypeTable(player, thisMatchType) {
-    let query = { $or: [] };
-
-    for (timestamp in player.stats[thisMatchType].matches) {
-        query.$or.push({ timestamp: Number(timestamp), id: player.stats[thisMatchType].matches[timestamp] });
-    }
+    var moment = require('moment'); // require
 
     var matches = [];
-
-    if (query.$or.length > 0) {
-        // need to query for something
-        try {
-            matches = await db.collection('matches').find(query).toArray();
-        }
-        catch (err) {
-            console.error(err)
-        }
-    }
-    else {
-        return ''; // no matches for this match type
-    }
-
     let headerText;
+    let tSize;
+
     switch (thisMatchType) {
         case Player.SIX_MANS_PROPERTY:
             headerText = 'Standard';
+            tSize = 3;
             break;
         case Player.FOUR_MANS_PROPERTY:
             headerText = 'Doubles';
+            tSize = 2;
             break;
         case Player.TWO_MANS_PROPERTY:
             headerText = 'Solo Duel';
+            tSize = 1;
             break;
+    }
+
+    let query = { players: { id: String(player._id) }, teamSize: Number(tSize)};
+
+    // Query for player matches
+    try {
+        matches = await db.collection('matches').find(query).toArray();
+    }
+    catch (err) {
+        console.error(err)
     }
 
     const playerRank = getPlayerRankIcon(player.stats[thisMatchType]);
@@ -306,7 +303,8 @@ async function addMatchTypeTable(player, thisMatchType) {
 <h2 id="${thisMatchType}" style="float: left; width: 100%;">
     ${headerText} ${icon}
 </h2>
-<table style="width: 32%">
+<table style="width: 600px !important; margin-bottom: 30px;">
+    <thead>
     <tr>
         <th style="width: 12%">
             Rating
@@ -324,6 +322,8 @@ async function addMatchTypeTable(player, thisMatchType) {
             Total Losses
         </th>
     </tr>
+    </thead>
+    <tbody>
     <tr>
         <td>
             ${player.stats[thisMatchType].rating.toFixed(2)} <span style="color: ${changeColor};">${changeSymbol}${Math.abs(player.stats[thisMatchType].lastRatingChange).toFixed(2)}</span>
@@ -341,30 +341,33 @@ async function addMatchTypeTable(player, thisMatchType) {
             ${player.stats[thisMatchType].totalLosses}
         </td>
     </tr>
-
+    </tbody>
 </table>
 <br>
-<table>
+<table class="leaderboardTable display" data-page-length='50'>
+<thead>
 <tr>
-    <th style="width: 9%">
+    <th class="nosearch" style="width: 150px;">
         Timestamp
     </th>
-    <th style="width: 2%">
+    <th class="nosearch" style="width: 80px;">
         Match ID
     </th>
-    <th style="width: 25%">
+    <th style="width: 300px;">
         Blue Team
     </th>
-    <th style="width: 25%">
+    <th style="width: 300px;">
         Orange Team
     </th>
-    <th style="width: 5%">
+    <th class="nosearch" style="width: 125px;">
         Winning Team
     </th>
-    <th style="width: 25%">
-        Rating Change
+    <th class="nosearch" style="width: 50px;">
+        +/-
     </th>
 </tr>
+</thead>
+<tbody>
 `;
 
     if (matches.length > 0) {
@@ -410,9 +413,12 @@ async function addMatchTypeTable(player, thisMatchType) {
             else {
                 winningTeamStr = `${teamNames[match.winningTeam]}`;
             }
+
+            let dtConverted = moment.utc(date).local();
+
             pStr += `<tr>
     <td>
-        ${date.getUTCMonth() + 1}/${date.getUTCDate()}/${date.getUTCFullYear()} ${date.getUTCHours()}:${date.getUTCMinutes()} UTC
+        ${dtConverted.format('L') + ' '  + dtConverted.format('LT')}
     </td>
     <td>
         ${match.id}
@@ -427,14 +433,17 @@ async function addMatchTypeTable(player, thisMatchType) {
         ${winningTeamStr}
     </td>
     <td>
-        ${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(3)}
+        ${
+            player.stats[thisMatchType].matchRatingChange[match.timestamp] == undefined ?
+            '' : player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(3)
+        }
     </td>
 
     </tr>`
         }
     }
 
-    pStr += '</table>'
+    pStr += '</tbody></table>'
 
     return pStr;
 }
@@ -657,34 +666,58 @@ async function showPlayer(req, res, player) {
 <html>
 <head>
 <title>
-    ${player.name} stats
+    MAN Leaderboard | ${player.name}
 </title>
+<link rel="stylesheet" href="/bootstrap/css/bootstrap.min.css"/>
+<link rel="stylesheet" href="/styles/datatables/jquery.dataTables.min.css"/>
+
+<script language="javascript" src="/jquery/jquery.min.js"></script>
+<script language="javascript" src="/bootstrap/js/bootstrap.min.js"></script>
+<script language="javascript" src="/scripts/jquery.dataTables.min.js"></script>
+<script language="javascript" src="/scripts/moment-with-locales.js"></script>
+
+<script language="javascript" src="/scripts/sub-player.js"></script>
 <style>
 ${HEADER_STYLE}
 </style>
+<link rel="stylesheet" href="/styles/leaderboard.css"/>
 </head>
-<body>`;
+<body>
+<div class="container">
+    <div class="topLogo">
+        <img src="/styles/images/MAN_logo.png">
+        </br>
+        <div class="navButtons">
+            <ul class="nav nav-pills">
+	            <li class="active">
+                    <a href="#standard" data-toggle="tab">Standard</a>
+	            </li>
+	            <li>
+                    <a href="#doubles" data-toggle="tab">Doubles</a>
+	            </li>
+	            <li>
+                    <a href="#solo" data-toggle="tab">Solo Duel</a>
+	            </li>
+            </ul>
+        </div>
+    </div>
+<div class="tab-content clearfix">`;
 
     pStr += `
 <span>
-    <h1 style="float:left">
+    <h1 style="float: left; width: 100%;">
         ${player.name}
+        <a class="backLink" href="/leaderboard"><span class="glyphicon glyphicon-triangle-left" aria-hidden="true"></span>Leaderboard</a>
     </h1>
-    <span style="float:right">
-        Contents:</br>
-        <a href='#${Player.SIX_MANS_PROPERTY}'>Jump to Standard</a><br>
-        <a href='#${Player.FOUR_MANS_PROPERTY}'>Jump to Doubles</a><br>
-        <a href='#${Player.TWO_MANS_PROPERTY}'>Jump to Solo Duel</a><br>
-    </span>
 </span>
 </br>
 </br>
 </br>`;
 
     try {
-        pStr += await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY);
-        pStr += await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY);
-        pStr += await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY);
+        pStr += `<div class="tab-pane active" id="standard">` + await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY) + '</div>';
+        pStr += `<div class="tab-pane" id="doubles">` + await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY) + '</div>';
+        pStr += `<div class="tab-pane" id="solo">` + await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY) + '</div>';
     }
     catch (err) {
         console.error(err);

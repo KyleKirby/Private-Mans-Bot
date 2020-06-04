@@ -111,3 +111,14 @@ table.dataTable, table.dataTable th, table.dataTable td {
     border-radius: 4px;
     font-weight: bold;
 }
+
+a.backLink {
+    font-size: 18px;
+    padding: 10px 0;
+    float: right;
+}
+
+.backLink .glyphicon {
+    padding-right: 5px;
+    font-size: 14px;
+}
