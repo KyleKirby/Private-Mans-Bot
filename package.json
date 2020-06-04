@@ -9,9 +9,10 @@
   "author": "Hubris",
   "license": "ISC",
   "dependencies": {
-    "bootstrap": "^4.5.0",
+    "bootstrap": "^3.4.1",
     "discord.js": "^12.1.1",
     "express": "^4.17.1",
+    "jquery": "^3.5.1",
     "mongodb": "^3.5.7"
   }
 }
