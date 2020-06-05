@@ -187,18 +187,23 @@ function addLeaderboardTable(players, sort, nextMatchType) {
 
 
     let lbHeaderText;
+    let iconURL;
     switch (nextMatchType) {
         case Player.FOUR_MANS_PROPERTY:
             lbHeaderText = 'Doubles';
+            iconURL = '/icons/doubles.png';
             break;
         case Player.TWO_MANS_PROPERTY:
             lbHeaderText = 'Solo Duel';
+            iconURL = '/icons/solo.png';
             break;
         default:
             lbHeaderText = 'Standard';
+            iconURL = '/icons/standard.png';
     }
     let lbStr = `
-<h2 class="tableTitle" id="${nextMatchType}" style="float: left; width: 100%;">
+<h2 class="tableTitle" id="${nextMatchType}" style="float: left; width: 100%; margin-bottom: 0px; padding-left: 3px;">
+    <img class="modeIcon" src="${iconURL}">
     ${lbHeaderText}
 </h2>
 </br>

@@ -122,3 +122,8 @@ a.backLink {
     padding-right: 5px;
     font-size: 14px;
 }
+
+.modeIcon {
+    vertical-align: baseline;
+    height: 23px;
+}
