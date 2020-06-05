@@ -298,7 +298,7 @@ async function addMatchTypeTable(player, thisMatchType) {
     }
 
     const playerRank = getPlayerRankIcon(player.stats[thisMatchType]);
-    icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
+    icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30" style="margin-bottom: 5px;">`;
 
     let ratingChange;
     let changeColor; // either red or green
@@ -322,8 +322,17 @@ async function addMatchTypeTable(player, thisMatchType) {
     }
 
     let pStr = `
+<span>
+    <h1 style="float: left; width: 100%;">
+        ${icon} ${player.name}
+        <a class="backLink" href="/leaderboard">Leaderboard<span class="glyphicon glyphicon-triangle-right" aria-hidden="true"></span></a>
+    </h1>
+</span>
+</br>
+</br>
+</br>
 <h2 id="${thisMatchType}" style="float: left; width: 100%;">
-    <img class="modeIcon" src="${iconURL}"> ${headerText} ${icon}
+    <img class="modeIcon" src="${iconURL}"> ${headerText}
 </h2>
 <table style="width: 600px !important; margin-bottom: 30px;">
     <thead>
@@ -859,17 +868,6 @@ ${HEADER_STYLE}
         </div>
     </div>
 <div class="tab-content clearfix">`;
-
-    pStr += `
-<span>
-    <h1 style="float: left; width: 100%;">
-        ${player.name}
-        <a class="backLink" href="/leaderboard">Leaderboard<span class="glyphicon glyphicon-triangle-right" aria-hidden="true"></span></a>
-    </h1>
-</span>
-</br>
-</br>
-</br>`;
 
     try {
         pStr += `<div class="tab-pane active" id="standard">` + await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY) + '</div>';
