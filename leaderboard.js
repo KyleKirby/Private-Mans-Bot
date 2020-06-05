@@ -230,11 +230,14 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
 
         let ratingChange;
-        if (entry.stats[matchType].lastRatingChange >= 0) {
-            ratingChange = `+${entry.stats[matchType].lastRatingChange.toFixed(0)}`;
+        if (entry.stats[matchType].lastRatingChange > 0) {
+            ratingChange = `<span style="color: green;">+${entry.stats[matchType].lastRatingChange.toFixed(0)}</span>`;
+        }
+        else if (entry.stats[matchType].lastRatingChange < 0) {
+            ratingChange = `<span style="color: red;">${entry.stats[matchType].lastRatingChange.toFixed(0)}</span>`;
         }
         else {
-            ratingChange = `${entry.stats[matchType].lastRatingChange.toFixed(0)}`;
+            ratingChange = `+${entry.stats[matchType].lastRatingChange.toFixed(0)}`;
         }
         rating = entry.stats[matchType].rating.toFixed(0);
         name = `<a href='/player?q=${entry._id}'>${entry.name}</a>`;
@@ -264,18 +267,22 @@ async function addMatchTypeTable(player, thisMatchType) {
     var matches = [];
     let headerText;
     let tSize;
+    let iconURL;
 
     switch (thisMatchType) {
         case Player.SIX_MANS_PROPERTY:
             headerText = 'Standard';
             tSize = 3;
+            iconURL = '/icons/standard.png';
             break;
         case Player.FOUR_MANS_PROPERTY:
             headerText = 'Doubles';
+            iconURL = '/icons/doubles.png';
             tSize = 2;
             break;
         case Player.TWO_MANS_PROPERTY:
             headerText = 'Solo Duel';
+            iconURL = '/icons/solo.png';
             tSize = 1;
             break;
     }
@@ -293,7 +300,7 @@ async function addMatchTypeTable(player, thisMatchType) {
     const playerRank = getPlayerRankIcon(player.stats[thisMatchType]);
     icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
 
-    let changeSymbol; // either + or -
+    let ratingChange;
     let changeColor; // either red or green
     if (player.stats[thisMatchType].lastRatingChange < 0) {
         changeSymbol = '-';
@@ -304,9 +311,19 @@ async function addMatchTypeTable(player, thisMatchType) {
         changeColor = 'green';
     }
 
+    if (player.stats[thisMatchType].lastRatingChange > 0) {
+        ratingChange = `<span style="color: green;">+${player.stats[thisMatchType].lastRatingChange.toFixed(2)}</span>`;
+    }
+    else if (player.stats[thisMatchType].lastRatingChange < 0) {
+        ratingChange = `<span style="color: red;">${player.stats[thisMatchType].lastRatingChange.toFixed(2)}</span>`;
+    }
+    else {
+        ratingChange = `+${player.stats[thisMatchType].lastRatingChange.toFixed(2)}`;
+    }
+
     let pStr = `
 <h2 id="${thisMatchType}" style="float: left; width: 100%;">
-    ${headerText} ${icon}
+    <img class="modeIcon" src="${iconURL}"> ${headerText} ${icon}
 </h2>
 <table style="width: 600px !important; margin-bottom: 30px;">
     <thead>
@@ -331,7 +348,7 @@ async function addMatchTypeTable(player, thisMatchType) {
     <tbody>
     <tr>
         <td>
-            ${player.stats[thisMatchType].rating.toFixed(2)} <span style="color: ${changeColor};">${changeSymbol}${Math.abs(player.stats[thisMatchType].lastRatingChange).toFixed(2)}</span>
+            ${player.stats[thisMatchType].rating.toFixed(2)} ${ratingChange}
         </td>
         <td>
             ${player.stats[thisMatchType].wins}
@@ -421,6 +438,21 @@ async function addMatchTypeTable(player, thisMatchType) {
 
             let dtConverted = moment.utc(date).local();
 
+            let ratingChangeMatch;
+
+            if (player.stats[thisMatchType].matchRatingChange[match.timestamp] == undefined) {
+                ratingChangeMatch = ``;
+            }
+            else if (player.stats[thisMatchType].matchRatingChange[match.timestamp] > 0) {
+                ratingChangeMatch = `<span style="color: green;">+${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(2)}</span>`;
+            }
+            else if (player.stats[thisMatchType].matchRatingChange[match.timestamp] < 0) {
+                ratingChangeMatch = `<span style="color: red;">${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(2)}</span>`;
+            }
+            else {
+                ratingChangeMatch = `+${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(2)}`;
+            }
+
             pStr += `<tr>
     <td>
         ${dtConverted.format('L') + ' '  + dtConverted.format('LT')}
@@ -438,10 +470,7 @@ async function addMatchTypeTable(player, thisMatchType) {
         ${winningTeamStr}
     </td>
     <td>
-        ${
-            player.stats[thisMatchType].matchRatingChange[match.timestamp] == undefined ?
-            '' : player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(3)
-        }
+        ${ratingChangeMatch}
     </td>
 
     </tr>`
@@ -534,76 +563,196 @@ function showHelp(req, res) {
     const helpString = `<!DOCTYPE html>
 <html>
 <head>
-    <title>
+<title>
         Private Mans Help
-    </title>
-    <style>
-        ${HEADER_STYLE}
-        .cmd {
-            font-weight: bold;
-        }
-    </style>
+</title>
+<link rel="stylesheet" href="/bootstrap/css/bootstrap.min.css"/>
+<link rel="stylesheet" href="/styles/datatables/jquery.dataTables.min.css"/>
+
+<script language="javascript" src="/jquery/jquery.min.js"></script>
+<script language="javascript" src="/bootstrap/js/bootstrap.min.js"></script>
+<script language="javascript" src="/scripts/jquery.dataTables.min.js"></script>
+
+<script language="javascript" src="/scripts/sub-help.js"></script>
+<style>
+    ${HEADER_STYLE}
+    .cmd {
+        font-weight: bold;
+    }
+</style>
+<link rel="stylesheet" href="/styles/help.css"/>
 </head>
 <body>
-    Note: parameters wrapped in &lt; &gt; are required. Parameters wrapped in [ ] are optional. <br>
-    <br>
-    Valid commands are:</br>
+<div class="container">
+    <div class="topLogo">
+        <img src="/styles/images/help_logo.png">
+    </div>
+<a class="backLink" href="/leaderboard">Leaderboard<span class="glyphicon glyphicon-triangle-right" aria-hidden="true"></span></a>
 </br>
-<div class="cmd">${userCommandPrefix}3</div>
--add yourself to the standard (3v3) queue</br>
-</br>
-<div class="cmd">${userCommandPrefix}2</div>
--add yourself to the doubles (2v2) queue</br>
-</br>
-<div class="cmd">${userCommandPrefix}1</div>
--add yourself to the solo duel (1v1) queue</br>
-</br>
-    <div class="cmd">${userCommandPrefix}b ${userCommandPrefix}balanced</div>
-    -vote for balanced teams</br>
-</br>
-    <div class="cmd">${userCommandPrefix}c ${userCommandPrefix}captains</div>
-    -vote for captains</br>
-</br>
-    <div class="cmd">${userCommandPrefix}cancel</div>
-    -vote to cancel the match you are currently in</br>
-</br>
-    <span class="cmd">${userCommandPrefix}clear</span> [3 | 2 | 1 | all]<br>
-    -clear out the current queue</br>
-    -without any additional parameters this will clear the standard queue</br>
-    -2 and 1 are optional parameters that specify the doubles and solo duel queues respectively</br>
-    -all is another optional parameter that will clear all queues</br>
-</br>
-    <div class="cmd">${userCommandPrefix}help</div>
-    -display help URL</br>
-</br>
-    <div class="cmd">${userCommandPrefix}l ${userCommandPrefix}leave</div>
-    -remove yourself from queue</br>
-</br>
-    <div class="cmd">${userCommandPrefix}lb ${userCommandPrefix}leaderboard</div>
-    -display leaderboard URL</br>
-</br>
-    <div class="cmd">${userCommandPrefix}matches</div>
-    -show ongoing matches</br>
-</br>
-    <div class="cmd">${userCommandPrefix}new season</div>
-    -reset player stats for a new season</br>
-</br>
-    <div class="cmd">${userCommandPrefix}r ${userCommandPrefix}random</div>
-    -vote for random teams</br>
-</br>
-    <span class="cmd">${userCommandPrefix}report</span> [match ID] &lt; w | l | win | loss &gt;</br>
-    -report the result of your match</br>
-    -optionally include match ID to report the result of a previous match</br>
-</br>
-    <div class="cmd">${userCommandPrefix}set</div>
-    -valid command parameters are:</br>
-        <span class="cmd">${userCommandPrefix}set prefix</span> &lt;new prefix&gt;</br>
-</br>
-    <div class="cmd">${userCommandPrefix}s ${userCommandPrefix}status</div>
-    -show the queue status</br>
-</br>
-    <div class="cmd">${userCommandPrefix}undo <match ID></div>
-    -undo a previously reported result for a match</br>
+<h2 style="float: left; width: 100%; margin: 0px;">
+    Commands
+</h2>
+
+<table class="leaderboardTable display" data-page-length='50'>
+<thead>
+<tr>
+    <th class="cmd">
+        Command
+    </th>
+    <th>
+        Description
+    </th>
+</tr>
+</thead>
+<tbody>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}3</div>
+        </td>
+        <td>
+            Add yourself to the standard (3v3) queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}2</div>
+        </td>
+        <td>
+            Add yourself to the doubles (2v2) queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}1</div>
+        </td>
+        <td>
+            Add yourself to the solo duel (1v1) queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}b ${userCommandPrefix}balanced</div>
+        </td>
+        <td>
+            Vote for balanced teams.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}c ${userCommandPrefix}captains</div>
+        </td>
+        <td>
+            Vote for captains.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}cancel</div>
+        </td>
+        <td>
+            Vote to cancel the match you are currently in.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <span class="cmd">${userCommandPrefix}clear</span> [3 | 2 | 1 | all]<br>
+    
+        </td>
+        <td>
+            Clear out the current queue.</br>
+            Without any additional parameters this will clear the standard queue.</br>
+            2 and 1 are optional parameters that specify the doubles and solo duel queues respectively.</br>
+            All is another optional parameter that will clear all queues.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}help</div>
+        </td>
+        <td>
+            Display help URL.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}l ${userCommandPrefix}leave</div>
+        </td>
+        <td>
+            Remove yourself from queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}lb ${userCommandPrefix}leaderboard</div>
+        </td>
+        <td>
+            Display leaderboard URL.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}matches</div>
+        </td>
+        <td>
+            Show ongoing matches.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}new season</div>
+        </td>
+        <td>
+            Reset player stats for a new season.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}r ${userCommandPrefix}random</div>
+        </td>
+        <td>
+            Vote for random teams.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <span class="cmd">${userCommandPrefix}report</span> [match ID] &lt; w | l | win | loss &gt;
+        </td>
+        <td>
+            Report the result of your match.</br>
+            Optionally include match ID to report the result of a previous match.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}set</div>
+        </td>
+        <td>
+            Admin only command that will change some global settings.</br>
+            Valid command parameters are:</br>
+            <span class="cmd" style="padding-left: 20px;">${userCommandPrefix}set prefix</span> &lt;new prefix&gt;
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}s ${userCommandPrefix}status</div>
+        </td>
+        <td>
+            Show the queue status.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}undo <match ID></div>
+        </td>
+        <td>
+            Undo a previously reported result for a match.
+        </td>
+    </tr>
+</tbody>
+</table>
+<span style="padding-bottom: 50px;">Note: parameters wrapped in &lt; &gt; are required. Parameters wrapped in [ ] are optional.</span>
+   
+</div>
 </body>
 </html>`;
     res.send(helpString);
@@ -653,6 +802,9 @@ ${HEADER_STYLE}
 	            </li>
             </ul>
         </div>
+    </div>
+    <div class="helpLinkContainer">
+        <a class="helpLink" href="/help">Help<span class="glyphicon glyphicon-triangle-right" aria-hidden="true"></span></a>
     </div>
     <div class="tab-content clearfix">
 `;
@@ -712,7 +864,7 @@ ${HEADER_STYLE}
 <span>
     <h1 style="float: left; width: 100%;">
         ${player.name}
-        <a class="backLink" href="/leaderboard"><span class="glyphicon glyphicon-triangle-left" aria-hidden="true"></span>Leaderboard</a>
+        <a class="backLink" href="/leaderboard">Leaderboard<span class="glyphicon glyphicon-triangle-right" aria-hidden="true"></span></a>
     </h1>
 </span>
 </br>

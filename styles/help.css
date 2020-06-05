@@ -15,7 +15,8 @@
 }
 
 .leaderboardTable td,th {
-    text-align: center !important;
+    text-align: left !important;
+    padding: 8px 20px !important;
 }
 
 .leaderboardTable th {
@@ -74,29 +75,13 @@ table.dataTable, table.dataTable th, table.dataTable td {
     padding-top: 5px;
 }
 
+.topLogo span {
+    position: relative;
+    top: 10px;
+}
+
 .dataTables_filter input[type="search"]::placeholder {
     color: #00000030;
-}
-
-.navButtons {
-    margin: 0 auto;
-    display: table;
-    padding-left: 3px;
-}
-
-.navButtons > .nav-pills > li.active > a, .navButtons > .nav-pills > li.active > a:focus, .navButtons > .nav-pills > li.active > a:hover {
-    color: #fff;
-    background-color: black;
-}
-
-.navButtons > .nav > li > a:focus, .navButtons > .nav > li > a:hover {
-    text-decoration: none;
-    background-color: #0c0c0ccc;
-}
-
-.navButtons >.nav-pills > li > a {
-    border-radius: 4px;
-    font-weight: bold;
 }
 
 a.backLink {
@@ -113,42 +98,4 @@ a.backLink {
 .modeIcon {
     vertical-align: baseline;
     height: 23px;
-}
-
-a.helpLink {
-    font-size: 18px;
-    padding: 10px 0;
-    float: right;
-    position: absolute;
-    /*right: 20%;*/
-    top: 158px;
-}
-
-.helpLink .glyphicon {
-    padding-left: 5px;
-    font-size: 14px;
-}
-
-.helpLinkContainer {
-    text-align: right;
-    padding-right: 85px;
-    width: 104%;
-}
-
-@media (min-width: 768px) {
-    .helpLinkContainer {
-        width: 750px;
-    }
-}
-
-@media (min-width: 992px) {
-    .helpLinkContainer {
-        width: 970px;
-    }
-}
-
-@media (min-width: 1200px) {
-    .helpLinkContainer {
-        width: 1170px;
-    }
 }
