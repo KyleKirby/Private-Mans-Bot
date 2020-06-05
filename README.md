@@ -4,8 +4,11 @@ Here is some relevant information to get you up and running with this bot. I'd a
 
 ## Dependencies:
 
-### discord.js
-```npm install discord.js```
+### node.js
+https://nodejs.org/en/download/
+
+### npm packages
+Execute ```npm install``` in the root directory of this repo
 
 ### mongoDB
 https://docs.mongodb.com/manual/installation/
