@@ -575,7 +575,7 @@ function displayHelp(msg) {
 function endMatch(msg, match) {
     match.ended = true;
 
-    if(match.started) {
+    if(match.started && match.voiceChannels[0] != null && match.voiceChannels[1] != null) {
         // if the match started, then voice channels were created
         msg.client.channels.fetch(config.QUEUE_CHANNEL).then(async queueChan => {
             for(p of match.teams[0]) {
