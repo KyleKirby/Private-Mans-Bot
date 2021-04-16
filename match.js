@@ -3,7 +3,7 @@
 
 const config = require('./config.js');
 
-const MAX_CONCURRENT_MATCHES = 69; // used when creating match name/password, in order to keep users from having to use a very large match name/password later on
+const MAX_CONCURRENT_MATCHES = 70; // used when creating match name/password, in order to keep users from having to use a very large match name/password later on
 
 const NONE_VOTE = 0;
 const CAPTAIN_VOTE = 1;
