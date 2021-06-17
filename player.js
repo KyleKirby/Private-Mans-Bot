@@ -7,7 +7,7 @@ const TWO_MANS_PROPERTY = 'two';
 const STARTING_RATING = 100;
 
 // if you add a field here, make sure you add it to the if statements below...
-const DEFAULT_OPTIONS_PER_MATCH_TYPE = {wins: 0, losses: 0, matches: {}, rating: STARTING_RATING, matchRatingChange: {}, lastRatingChange: 0, totalWins: 0, totalLosses: 0};
+const DEFAULT_OPTIONS_PER_MATCH_TYPE = {wins: 0, losses: 0, matches: {}, rating: STARTING_RATING, matchRatingChange: {}, lastRatingChange: 0, totalWins: 0, totalLosses: 0, streak: 0};
 
 const defaultOptionProperties = [SIX_MANS_PROPERTY, FOUR_MANS_PROPERTY, TWO_MANS_PROPERTY];
 
@@ -53,6 +53,9 @@ function Player(member, options) {
                 }
                 if(!('totalLosses' in options[prop])) {
                     options[prop].totalLosses = 0; // for use in leaderboard in case people care about the last change to their MMR
+                }
+                if(!('streak' in options[prop])) {
+                    options[prop].streak = 0; // win/loss streak
                 }
             }
         }

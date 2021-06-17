@@ -43,7 +43,7 @@ process.on('exit', handleExit);
 
 const HEADER_STYLE = `
 body {
-    background-color: #171717 !important; 
+    background-color: #171717 !important;
     color: #ffffff;
 }
 
@@ -109,30 +109,6 @@ CHAMPION_2 = 1295;
 CHAMPION_3 = 1395;
 GRAND_CHAMPION = 1515;
 */
-
-const UNRANKED = { title: 'Unranked', icon: '/icons/unranked.png' };
-
-const RANKS = [
-    { title: 'Bronze 1', min: Rating.BRONZE_1, icon: '/icons/bronze1.png' },
-    { title: 'Bronze 2', min: Rating.BRONZE_2, icon: '/icons/bronze2.png' },
-    { title: 'Bronze 3', min: Rating.BRONZE_3, icon: '/icons/bronze3.png' },
-    { title: 'Silver 1', min: Rating.SILVER_1, icon: '/icons/silver1.png' },
-    { title: 'Silver 2', min: Rating.SILVER_2, icon: '/icons/silver2.png' },
-    { title: 'Silver 3', min: Rating.SILVER_3, icon: '/icons/silver3.png' },
-    { title: 'Gold 1', min: Rating.GOLD_1, icon: '/icons/gold1.png' },
-    { title: 'Gold 2', min: Rating.GOLD_2, icon: '/icons/gold2.png' },
-    { title: 'Gold 3', min: Rating.GOLD_3, icon: '/icons/gold3.png' },
-    { title: 'Platinum 1', min: Rating.PLATINUM_1, icon: '/icons/platinum1.png' },
-    { title: 'Platinum 2', min: Rating.PLATINUM_2, icon: '/icons/platinum2.png' },
-    { title: 'Platinum 3', min: Rating.PLATINUM_3, icon: '/icons/platinum3.png' },
-    { title: 'Diamond 1', min: Rating.DIAMOND_1, icon: '/icons/diamond1.png' },
-    { title: 'Diamond 2', min: Rating.DIAMOND_2, icon: '/icons/diamond2.png' },
-    { title: 'Diamond 3', min: Rating.DIAMOND_3, icon: '/icons/diamond3.png' },
-    { title: 'Champion 1', min: Rating.CHAMPION_1, icon: '/icons/champ1.png' },
-    { title: 'Champion 2', min: Rating.CHAMPION_2, icon: '/icons/champ2.png' },
-    { title: 'Champion 3', min: Rating.CHAMPION_3, icon: '/icons/champ3.png' },
-    { title: 'Grand Champion', min: Rating.GRAND_CHAMPION, icon: '/icons/grandchamp.png' }
-];
 
 function addLeaderboardTable(players, sort, nextMatchType) {
 
@@ -492,13 +468,13 @@ async function addMatchTypeTable(player, thisMatchType) {
 }
 
 function getPlayerRankIcon(matchTypeStats) {
-    let best = RANKS[0]; // best rank for this player so far
+    let best = Rating.RANKS[0]; // best rank for this player so far
     if ((matchTypeStats.wins + matchTypeStats.losses) < Rating.NUMBER_OF_PLACEMENT_MATCHES) {
-        return UNRANKED; // player is unranked
+        return Rating.UNRANKED; // player is unranked
     }
     else {
         // get the icon for this player's rank
-        for (r of RANKS) {
+        for (r of Rating.RANKS) {
             if (matchTypeStats.rating > r.min) {
                 best = r;
             }
@@ -665,7 +641,7 @@ function showHelp(req, res) {
     <tr>
         <td>
             <span class="cmd">${userCommandPrefix}clear</span> [3 | 2 | 1 | all]<br>
-    
+
         </td>
         <td>
             Clear out the current queue.</br>
@@ -760,7 +736,7 @@ function showHelp(req, res) {
 </tbody>
 </table>
 <span style="padding-bottom: 50px;">Note: parameters wrapped in &lt; &gt; are required. Parameters wrapped in [ ] are optional.</span>
-   
+
 </div>
 </body>
 </html>`;

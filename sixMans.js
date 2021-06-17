@@ -58,11 +58,64 @@ const BALANCED_VOTE = 3;
 
 var userCommandPrefix = '.';
 
-var queue = []; // standard queue
-
+// Universal queue, non-rated
+var queueSix = []; // standard queue
 var queueFour = []; // doubles queue
-
 var queueTwo = []; // solo duel queue
+
+
+/*
+Tier 1
+SUPERSONIC LEGEND = 1860
+GRAND CHAMPION 3 = 1700
+GRAND CHAMPION 2 = 1560
+GRAND CHAMPION 1 = 1420
+*/
+const TIER_1_MIN_RATING = rating.GRAND_CHAMPION_1;
+var queueSixTier1 = [];
+var queueFourTier1 = [];
+var queueTwoTier1 = [];
+
+/*
+Tier 2
+CHAMPION 3 = 1300
+CHAMPION 2 = 1180
+CHAMPION 1 = 1060
+DIAMOND 3 = 980
+DIAMOND 2 = 900
+DIAMOND 1 = 820
+*/
+const TIER_2_MIN_RATING = rating.DIAMOND_1;
+var queueSixTier2 = [];
+var queueFourTier2 = [];
+var queueTwoTier2 = [];
+
+/*
+Tier 3
+PLATINUM 3 = 760
+PLATINUM 2 = 700
+PLATINUM 1 = 640
+GOLD 3 = 580
+GOLD 2 = 520
+GOLD 1 = 460
+*/
+const TIER_3_MIN_RATING = rating.GOLD_1;
+var queueSixTier3 = [];
+var queueFourTier3 = [];
+var queueTwoTier3 = [];
+
+/*
+Tier 4
+SILVER 3 = 400
+SILVER 2 = 340
+SILVER 1 = 280
+BRONZE 3 = 220
+BRONZE 2 = 160
+BRONZE 1 = 0
+*/
+var queueSixTier4 = [];
+var queueFourTier4 = [];
+var queueTwoTier4 = [];
 
 var nextMatchId = 0;
 const MAX_MATCH_ID = Number.MAX_SAFE_INTEGER; // match id will wrap to 0 upon reaching this value, so this is also the max concurrent matches
@@ -166,14 +219,26 @@ module.exports = {
 
 
             case '1':
-            addToSoloDuelQueue(msg);
+            addToRatedSoloDuelQueue(msg);
             break;
 
             case '2':
-            addToDoublesQueue(msg);
+            addToRatedDoublesQueue(msg);
             break;
 
             case '3':
+            addToRatedStandardQueue(msg);
+            break;
+
+            case '1u':
+            addToSoloDuelQueue(msg);
+            break;
+
+            case '2u':
+            addToDoublesQueue(msg);
+            break;
+
+            case '3u':
             addToStandardQueue(msg);
             break;
 
@@ -209,32 +274,367 @@ module.exports.getCommandPrefix = function() {
     return userCommandPrefix;
 }
 
+async function getPlayerRating(member, id, matchType) {
+    // add a document for this player if it does not already exist
+    let query = {_id: id};
+
+    const result = await db.collection('players').findOne(query);
+
+    /*
+    db.collection('players').findOne(query, (err, result) => {
+        if(err) {
+            handleDataBaseError(err, `Error finding member ID ${user.id} in players collection\n`, false);
+        }
+        else {
+            if(result == null) {
+                // did not find player in database, need to insert document for that player in the players collection
+                let o = Player.Player(user);
+                db.collection('players').insertOne(o, (err, res) => {
+                    if(err) {
+                        handleDataBaseError(err, 'Error inserting player\n', false);
+                    }
+                });
+            }
+        }
+    });
+    */
+    //console.log(result);
+    if(result == null)
+    {
+        // player was not found, need to set player rating
+        return rating.getHighestRank(member.roles.cache).min;
+    }
+    switch(matchType) {
+    case Player.SIX_MANS_PROPERTY:
+        return result.stats.six.rating;
+    case Player.FOUR_MANS_PROPERTY:
+        return result.stats.four.rating;
+    case Player.TWO_MANS_PROPERTY:
+        return result.stats.two.rating;
+    }
+}
+
+function isUserInQueue(id) {
+    for (m of queueSix) {
+        if(m.id === id)
+        {
+            // member is already in queue
+            return true;
+        }
+    }
+    for (m of queueFour) {
+        if(m.id === id)
+        {
+            // member is already in queue
+            return true;
+        }
+    }
+    for (m of queueTwo) {
+        if(m.id === id)
+        {
+            // member is already in queue
+            return true;
+        }
+    }
+    return false;
+}
+
+async function addToRatedStandardQueue(msg) {
+    if(msg.member.id in membersInMatches) {
+        // user is already in a match, ignore
+        return;
+    }
+    if(isUserInQueue(msg.member.id))
+        return;
+
+    const rating = await getPlayerRating(msg.member, msg.member.id, Player.SIX_MANS_PROPERTY);
+
+    if(rating >= TIER_1_MIN_RATING)
+    {
+        // add user to tier 1 rated queue
+        queueSixTier1.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 1 standard queue.
+    Users in queue: ${queueString(queueSixTier1)}\n`;
+
+        if(queueSixTier1.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueSixTier1, config.SIX_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else if(rating >= TIER_2_MIN_RATING)
+    {
+        // add user to tier 2 rated queue
+        queueSixTier2.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 2 standard queue.
+    Users in queue: ${queueString(queueSixTier2)}\n`;
+
+        if(queueSixTier2.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueSixTier2, config.SIX_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else if(rating >= TIER_3_MIN_RATING)
+    {
+        // add user to tier 3 rated queue
+        queueSixTier3.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 3 standard queue.
+    Users in queue: ${queueString(queueSixTier3)}\n`;
+
+        if(queueSixTier3.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueSixTier3, config.SIX_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else
+    {
+        // add user to tier 4 rated queue
+        queueSixTier4.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 4 standard queue.
+    Users in queue: ${queueString(queueSixTier4)}\n`;
+
+        if(queueSixTier4.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueSixTier4, config.SIX_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+}
+
+async function addToRatedDoublesQueue(msg) {
+    if(msg.member.id in membersInMatches) {
+        // user is already in a match, ignore
+        return;
+    }
+    if(isUserInQueue(msg.member.id))
+        return;
+
+    const rating = await getPlayerRating(msg.member, msg.member.id, Player.FOUR_MANS_PROPERTY);
+
+    if(rating >= TIER_1_MIN_RATING)
+    {
+        // add user to tier 1 rated queue
+        queueFourTier1.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 1 doubles queue.
+    Users in queue: ${queueString(queueFourTier1)}\n`;
+
+        if(queueFourTier1.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueFourTier1, config.FOUR_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else if(rating >= TIER_2_MIN_RATING)
+    {
+        // add user to tier 2 rated queue
+        queueFourTier2.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 2 doubles queue.
+    Users in queue: ${queueString(queueFourTier2)}\n`;
+
+        if(queueFourTier2.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueFourTier2, config.FOUR_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else if(rating >= TIER_3_MIN_RATING)
+    {
+        // add user to tier 3 rated queue
+        queueFourTier3.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 3 doubles queue.
+    Users in queue: ${queueString(queueFourTier3)}\n`;
+
+        if(queueFourTier3.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueFourTier3, config.FOUR_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else
+    {
+        // add user to tier 4 rated queue
+        queueFourTier4.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 4 doubles queue.
+    Users in queue: ${queueString(queueFourTier4)}\n`;
+
+        if(queueFourTier4.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueFourTier4, config.FOUR_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+}
+
+async function addToRatedSoloDuelQueue(msg) {
+    if(msg.member.id in membersInMatches) {
+        // user is already in a match, ignore
+        return;
+    }
+    if(isUserInQueue(msg.member.id))
+        return;
+
+    const rating = await getPlayerRating(msg.member, msg.member.id, Player.FOUR_MANS_PROPERTY);
+
+    if(rating >= TIER_1_MIN_RATING)
+    {
+        // add user to tier 1 rated queue
+        queueTwoTier1.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 1 solo duel queue.
+    Users in queue: ${queueString(queueTwoTier1)}\n`;
+
+        if(queueTwoTier1.length === config.TWO_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueTwoTier1, config.TWO_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else if(rating >= TIER_2_MIN_RATING)
+    {
+        // add user to tier 2 rated queue
+        queueTwoTier2.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 2 solo duel queue.
+    Users in queue: ${queueString(queueTwoTier2)}\n`;
+
+        if(queueTwoTier2.length === config.TWO_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueTwoTier2, config.TWO_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else if(rating >= TIER_3_MIN_RATING)
+    {
+        // add user to tier 3 rated queue
+        queueTwoTier3.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 3 solo duel queue.
+    Users in queue: ${queueString(queueTwoTier3)}\n`;
+
+        if(queueTwoTier3.length === config.TWO_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueTwoTier3, config.TWO_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+    else
+    {
+        // add user to tier 4 rated queue
+        queueTwoTier4.push(msg.member);
+        var s = `>>> Added <@${msg.member.id}> to the tier 4 solo duel queue.
+    Users in queue: ${queueString(queueTwoTier4)}\n`;
+
+        if(queueTwoTier4.length === config.TWO_MANS_MAX_QUEUE_SIZE) {
+            // the queue is filled!
+            // now we need to make teams
+            createMatch(msg, queueTwoTier4, config.TWO_MANS_TEAM_SIZE, true);
+            s += `Match is ready to start.
+    Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+    Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+    Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+    The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+        }
+        msg.channel.send(s);
+    }
+}
+
+function addToStandardQueue(msg) {
+    if(msg.member.id in membersInMatches) {
+        // user is already in a match, ignore
+        return;
+    }
+    if(isUserInQueue(msg.member.id))
+        return;
+
+    queueSix.push(msg.member);
+    var s = `>>> Added <@${msg.member.id}> to the standard queue.
+Users in queue: ${queueSixString()}\n`;
+
+    if(queueSix.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
+        // the queue is filled!
+        // now we need to make teams
+        createMatch(msg, queueSix, config.SIX_MANS_TEAM_SIZE, false);
+        s += `Match is ready to start.
+Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
+Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
+Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
+The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
+    }
+    msg.channel.send(s);
+}
+
 function addToDoublesQueue(msg) {
     if(msg.member.id in membersInMatches) {
         // user is already in a match, ignore
         return;
     }
-    for (m of queue) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueFour) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueTwo) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
+    if(isUserInQueue(msg.member.id))
+        return;
 
     queueFour.push(msg.member);
     var s = `>>> Added <@${msg.member.id}> to the doubles queue.
@@ -243,7 +643,7 @@ Users in queue: ${queueFourString()}\n`;
     if(queueFour.length === config.FOUR_MANS_MAX_QUEUE_SIZE) {
         // the queue is filled!
         // now we need to make teams
-        createMatch(msg, config.FOUR_MANS_TEAM_SIZE);
+        createMatch(msg, queueFour, config.FOUR_MANS_TEAM_SIZE, false);
         s += `Match is ready to start.
 Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
 Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
@@ -258,28 +658,8 @@ function addToSoloDuelQueue(msg) {
         // user is already in a match, ignore
         return;
     }
-
-    for (m of queue) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueFour) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueTwo) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
+    if(isUserInQueue(msg.member.id))
+        return;
 
     queueTwo.push(msg.member);
     var s = `>>> Added <@${msg.member.id}> to the solo duel queue.
@@ -287,7 +667,7 @@ Users in queue: ${queueTwoString()}\n`;
 
     if(queueTwo.length === config.TWO_MANS_MAX_QUEUE_SIZE) {
         // the queue is filled!
-        let match = createMatch(msg, config.TWO_MANS_TEAM_SIZE);
+        let match = createMatch(msg, queueTwo, config.TWO_MANS_TEAM_SIZE, false);
         s += `Match is ready to start.`;
         msg.channel.send(s);
         match.teams[0].push(match.players[0]);
@@ -297,50 +677,6 @@ Users in queue: ${queueTwoString()}\n`;
     }
     else
         msg.channel.send(s);
-}
-
-function addToStandardQueue(msg) {
-    if(msg.member.id in membersInMatches) {
-        // user is already in a match, ignore
-        return;
-    }
-    for (m of queue) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueFour) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-    for (m of queueTwo) {
-        if(m.id === msg.member.id)
-        {
-            // member is already in queue
-            return;
-        }
-    }
-
-    queue.push(msg.member);
-    var s = `>>> Added <@${msg.member.id}> to the standard queue.
-Users in queue: ${queueString()}\n`;
-
-    if(queue.length === config.SIX_MANS_MAX_QUEUE_SIZE) {
-        // the queue is filled!
-        // now we need to make teams
-        createMatch(msg, config.SIX_MANS_TEAM_SIZE);
-        s += `Match is ready to start.
-Enter ${userCommandPrefix}b or ${userCommandPrefix}balanced to vote for balanced teams.
-Enter ${userCommandPrefix}r or ${userCommandPrefix}random to vote for random teams.
-Enter ${userCommandPrefix}c or ${userCommandPrefix}captains to vote to have captains pick teams.
-The match will be started with the highest vote if 2 minutes have elapsed without any option reaching 3 votes.`;
-    }
-    msg.channel.send(s);
 }
 
 function cancelMatch(msg) {
@@ -426,8 +762,8 @@ function clearQueue(msg) {
     let args = msg.content.split(' ');
     if(args.length === 1 || (args.length === 2 && args[1] === '3')) {
         // clearing standard queue
-        if(queue.length > 0) {
-            queue = [];
+        if(queueSix.length > 0) {
+            queueSix = [];
             msg.channel.send(`>>> Cleared standard queue.`);
         }
         else {
@@ -456,14 +792,14 @@ function clearQueue(msg) {
         }
     }
     else if(args.length === 2 && args[1] === 'all') {
-        if(queue.length === 0 && queueFour.length === 0 && queueTwo.length === 0) {
+        if(queueSix.length === 0 && queueFour.length === 0 && queueTwo.length === 0) {
             msg.channel.send(`>>> All queues are already empty.`);
         }
         else {
             let s = '>>> ';
             // clearing standard queue
-            if(queue.length > 0) {
-                queue = [];
+            if(queueSix.length > 0) {
+                queueSix = [];
                 s += `Cleared standard queue.\n`;
             }
             // clearing doubles queue
@@ -481,26 +817,9 @@ function clearQueue(msg) {
     }
 }
 
-function createMatch(msg, teamSize) {
-    var match;
-    switch(teamSize) {
-        case config.SIX_MANS_TEAM_SIZE:
-            match = Match(queue, nextMatchId, teamSize);
-            queue = [];
-            break;
-
-        case config.FOUR_MANS_TEAM_SIZE:
-            match = Match(queueFour, nextMatchId, teamSize);
-            queueFour = [];
-            break;
-
-        case config.TWO_MANS_TEAM_SIZE:
-            match = Match(queueTwo, nextMatchId, teamSize);
-            queueTwo = [];
-            break;
-        default:
-            // ??? match type
-    }
+function createMatch(msg, queue, teamSize, rated) {
+    var match = Match(queueSix, nextMatchId, teamSize, rated);
+    queue.splice(0, queue.length);
 
     for (const user of match.players) {
         membersInMatches[user.id] = match.id;
@@ -915,12 +1234,16 @@ async function orderPlayersByRank(players, teamSize) {
     return playerList;
 }
 
-function queueFourString() {
-    return userMentionString(queueFour);
+function queueString(queue) {
+    return userMentionString(queue);
 }
 
-function queueString() {
-    return userMentionString(queue);
+function queueSixString() {
+    return userMentionString(queueSix);
+}
+
+function queueFourString() {
+    return userMentionString(queueFour);
 }
 
 function queueTwoString() {
@@ -966,14 +1289,14 @@ function rankPlayersTwo(p1,p2) {
 function removeUserFromQueue(msg) {
     // find if the user is in queue, if they are in one them remove them
     let i = 0;
-    for (m of queue) {
+    for (m of queueSix) {
         if(m.id === msg.member.id)
         {
             // remove this member from the queue
-            queue.splice(i, 1);
+            queueSix.splice(i, 1);
             var s = `>>> Removed <@${msg.member.id}> from the standard queue.\n`;
             if(queue.length > 0) {
-                s += `Users in queue: ${queueString()}`;
+                s += `Users in queue: ${queueSixString()}`;
             }
             else {
                 s += `No users left in queue.`
@@ -1010,6 +1333,229 @@ function removeUserFromQueue(msg) {
             var s = `>>> Removed <@${msg.member.id}> from the solo duel queue.\n`;
             if(queueTwo.length > 0) {
                 s += `Users in queue: ${queueTwoString()}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    // check tier 1 queues
+    i = 0;
+    for (m of queueSixTier1) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueSixTier1.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 1 standard queue.\n`;
+            if(queueSixTier1.length > 0) {
+                s += `Users in queue: ${queueString(queueSixTier1)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueFourTier1) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueFourTier1.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 1 doubles queue.\n`;
+            if(queueFourTier1.length > 0) {
+                s += `Users in queue: ${queueString(queueFourTier1)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueTwoTier1) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueTwoTier1.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 1 solo duel queue.\n`;
+            if(queueTwoTier1.length > 0) {
+                s += `Users in queue: ${queueString(queueTwoTier1)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+
+    // check tier 2 queues
+    i = 0;
+    for (m of queueSixTier2) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueSixTier2.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 1 standard queue.\n`;
+            if(queueSixTier2.length > 0) {
+                s += `Users in queue: ${queueString(queueSixTier2)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueFourTier2) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueFourTier2.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 2 doubles queue.\n`;
+            if(queueFourTier2.length > 0) {
+                s += `Users in queue: ${queueString(queueFourTier2)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueTwoTier2) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueTwoTier2.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 1 solo duel queue.\n`;
+            if(queueTwoTier2.length > 0) {
+                s += `Users in queue: ${queueString(queueTwoTier2)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+
+    // check tier 3 queues
+    i = 0;
+    for (m of queueSixTier3) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueSixTier3.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 3 standard queue.\n`;
+            if(queueSixTier3.length > 0) {
+                s += `Users in queue: ${queueString(queueSixTier3)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueFourTier3) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueFourTier3.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 3 doubles queue.\n`;
+            if(queueFourTier3.length > 0) {
+                s += `Users in queue: ${queueString(queueFourTier3)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueTwoTier3) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueTwoTier3.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 3 solo duel queue.\n`;
+            if(queueTwoTier3.length > 0) {
+                s += `Users in queue: ${queueString(queueTwoTier3)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+
+    // check tier 4 queues
+    i = 0;
+    for (m of queueSixTier4) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueSixTier4.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 4 standard queue.\n`;
+            if(queueSixTier4.length > 0) {
+                s += `Users in queue: ${queueString(queueSixTier4)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueFourTier4) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueFourTier4.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 4 doubles queue.\n`;
+            if(queueFourTier4.length > 0) {
+                s += `Users in queue: ${queueString(queueFourTier4)}`;
+            }
+            else {
+                s += `No users left in queue.`
+            }
+            msg.channel.send(s);
+            return;
+        }
+        i++;
+    }
+    i = 0;
+    for (m of queueTwoTier4) {
+        if(m.id === msg.member.id)
+        {
+            // remove this member from the queue
+            queueTwoTier4.splice(i, 1);
+            var s = `>>> Removed <@${msg.member.id}> from the Tier 4 solo duel queue.\n`;
+            if(queueTwoTier4.length > 0) {
+                s += `Users in queue: ${queueString(queueTwoTier4)}`;
             }
             else {
                 s += `No users left in queue.`
@@ -1298,7 +1844,22 @@ async function reportResult(match) {
         }
         for (m of teams[i]) {
             // now get this players new rating
-            const d = rating.calculateRatingChange(avgs[i], avgs[b], rating.getK(m.stats[matchType].rating, m.stats[matchType].wins + m.stats[matchType].losses), score); // change in this player's rating
+            if(winner) {
+                // player won
+                if(m.stats[matchType].streak < 0) // ending lose streak
+                    m.stats[matchType].streak = 0;
+                else // continuing win streak
+                    m.stats[matchType].streak += 1;
+            }
+            else {
+                // player lost
+                if(m.stats[matchType].streak > 0) // ending win streak
+                    m.stats[matchType].streak = 0;
+                else // continuing lose streak
+                    m.stats[matchType].streak -= 1;
+            }
+
+            const d = rating.calculateRatingChange(avgs[i], avgs[b], rating.getK(m.stats[matchType].rating, m.stats[matchType].wins + m.stats[matchType].losses), score, m.stats[matchType].streak); // change in this player's rating
             const newRating = m.stats[matchType].rating + d;
 
             // we have this players new rating, now update mongoDB with the rating
@@ -1311,9 +1872,13 @@ async function reportResult(match) {
                 update[`stats.${matchType}.losses`] = m.stats[matchType].losses + 1;
                 update[`stats.${matchType}.totalLosses`] = m.stats[matchType].totalLosses + 1;
             }
-            update[`stats.${matchType}.rating`] = newRating;
-            update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = d;
-            update[`stats.${matchType}.lastRatingChange`] = d;
+            if(match.rated)
+            {
+                update[`stats.${matchType}.rating`] = newRating;
+                update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = d;
+                update[`stats.${matchType}.lastRatingChange`] = d;
+                update[`stats.${matchType}.streak`] = m.stats[matchType].streak;
+            }
 
             const query = {_id: m._id};
 
@@ -1491,19 +2056,60 @@ Password: ${match.password}\n\n`;
 }
 
 function showQueueStatus(msg) {
-    if(queue.length === 0 && queueFour.length === 0 && queueTwo.length === 0) {
+    if(queueSixTier1.length === 0 && queueFourTier1.length === 0 && queueTwoTier1.length === 0 &&
+        queueSixTier2.length === 0 && queueFourTier2.length === 0 && queueTwoTier2.length === 0 &&
+        queueSixTier3.length === 0 && queueFourTier3.length === 0 && queueTwoTier3.length === 0 &&
+        queueSixTier4.length === 0 && queueFourTier4.length === 0 && queueTwoTier4.length === 0 &&
+        queueSix.length === 0 && queueFour.length === 0 && queueTwo.length === 0) {
         msg.channel.send(`>>> No users in queue.`);
     }
     else {
         var s = '>>> ';
-        if(queue.length > 0) {
-            s += `Users in standard queue: ${queueString()}\n`;
+        if(queueSixTier1.length > 0) {
+            s += `Users in Tier 1 standard queue: ${queueString(queueSixTier1)}\n`;
+        }
+        if(queueFourTier1.length > 0) {
+            s += `Users in Tier 1 doubles queue: ${queueString(queueFourTier1)}\n`;
+        }
+        if(queueTwoTier1.length > 0) {
+            s += `Users in Tier 1 solo duel queue: ${queueString(queueTwoTier1)}\n`;
+        }
+        if(queueSixTier2.length > 0) {
+            s += `Users in Tier 2 standard queue: ${queueString(queueSixTier2)}\n`;
+        }
+        if(queueFourTier2.length > 0) {
+            s += `Users in Tier 2 doubles queue: ${queueString(queueFourTier2)}\n`;
+        }
+        if(queueTwoTier2.length > 0) {
+            s += `Users in Tier 2 solo duel queue: ${queueString(queueTwoTier2)}\n`;
+        }
+        if(queueSixTier3.length > 0) {
+            s += `Users in Tier 3 standard queue: ${queueString(queueSixTier3)}\n`;
+        }
+        if(queueFourTier3.length > 0) {
+            s += `Users in Tier 3 doubles queue: ${queueString(queueFourTier3)}\n`;
+        }
+        if(queueTwoTier3.length > 0) {
+            s += `Users in Tier 3 solo duel queue: ${queueString(queueTwoTier3)}\n`;
+        }
+        if(queueSixTier4.length > 0) {
+            s += `Users in Tier 4 standard queue: ${queueString(queueSixTier4)}\n`;
+        }
+        if(queueFourTier4.length > 0) {
+            s += `Users in Tier 4 doubles queue: ${queueString(queueFourTier4)}\n`;
+        }
+        if(queueTwoTier4.length > 0) {
+            s += `Users in Tier 4 solo duel queue: ${queueString(queueTwoTier4)}\n`;
+        }
+
+        if(queueSix.length > 0) {
+            s += `Users in unrated standard queue: ${queueSixString()}\n`;
         }
         if(queueFour.length > 0) {
-            s += `Users in doubles queue: ${queueFourString()}\n`;
+            s += `Users in unrated doubles queue: ${queueFourString()}\n`;
         }
         if(queueTwo.length > 0) {
-            s += `Users in solo duel queue: ${queueTwoString()}\n`;
+            s += `Users in unrated solo duel queue: ${queueTwoString()}\n`;
         }
         msg.channel.send(s);
     }

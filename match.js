@@ -13,7 +13,7 @@ const BALANCED_VOTE = 3;
 // team 0 = blue
 // team 1 = orange
 
-function Match(playerList, matchId, matchTeamSize) {
+function Match(playerList, matchId, matchTeamSize, rated) {
 
     if(!(this instanceof Match)) {
         return new Match(playerList, matchId, matchTeamSize);
@@ -42,6 +42,7 @@ function Match(playerList, matchId, matchTeamSize) {
     this.voiceChannels = [null, null];
     this.winningTeam = -1; // for use in querying past match results
     this.timer = null;
+    this.rated = rated; // False means Universal queue matches which are "unrated" (match results do not affect MMR). True means rated match within a specific tier
 };
 
 Match.prototype.addVoteForBalanced = function addVoteForBalanced(userId) {
@@ -162,7 +163,8 @@ Match.prototype.getMongoObject = function getMongoObject() {
         canceled: this.canceled,
         name: this.name,
         password: this.password,
-        winningTeam: this.winningTeam
+        winningTeam: this.winningTeam,
+        rated: this.rated
     };
     for(p of this.players) {
         o.players.push({id:p.id});
