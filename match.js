@@ -16,10 +16,10 @@ const BALANCED_VOTE = 3;
 function Match(playerList, matchId, matchTeamSize, rated) {
 
     if(!(this instanceof Match)) {
-        return new Match(playerList, matchId, matchTeamSize);
+        return new Match(playerList, matchId, matchTeamSize, rated);
     }
 
-    this.players = playerList; // list of players
+    this.players = playerList.slice(); // list of players
     this.id = matchId;
     this.timestamp = Date.now(); // match creation timestamp
     this.teams=[[],[]]
