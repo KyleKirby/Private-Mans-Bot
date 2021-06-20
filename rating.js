@@ -90,8 +90,7 @@ exports.GRAND_CHAMPION_2 = 1560;
 exports.GRAND_CHAMPION_3 = 1700;
 exports.SUPERSONIC_LEGEND = 1860;
 
-/*
-// check if these role match with MAN role ids
+// MAN role ids
 exports.RANKS = [
     { title: 'Bronze 1', min: exports.BRONZE_1, icon: '/icons/bronze1.png', role: '415455534901100545' },
     { title: 'Bronze 2', min: exports.BRONZE_2, icon: '/icons/bronze2.png', role: '415458199110680576' },
@@ -116,8 +115,9 @@ exports.RANKS = [
     { title: 'Grand Champion 3', min: exports.GRAND_CHAMPION_3, icon: '/icons/GrandChamp3.png', role: '750825780493156433' },
     { title: 'Supersonic Legend', min: exports.SUPERSONIC_LEGEND, icon: '/icons/SupersonicLegend.png', role: '750826797330858025' }
 ];
-*/
 
+/*
+// test role ids
 exports.RANKS = [
     { title: 'Bronze 1', min: exports.BRONZE_1, icon: '/icons/bronze1.png', role: '855126988594872330' },
     { title: 'Bronze 2', min: exports.BRONZE_2, icon: '/icons/bronze2.png', role: '855127049802743869' },
@@ -142,6 +142,7 @@ exports.RANKS = [
     { title: 'Grand Champion 3', min: exports.GRAND_CHAMPION_3, icon: '/icons/GrandChamp3.png', role: '855127552938999828' },
     { title: 'Supersonic Legend', min: exports.SUPERSONIC_LEGEND, icon: '/icons/SupersonicLegend.png', role: '855127577537937419' }
 ];
+*/
 
 exports.UNRANKED = { title: 'Unranked', min: exports.BRONZE_1, icon: '/icons/unranked.png', role: '415462517029076992' };
 
