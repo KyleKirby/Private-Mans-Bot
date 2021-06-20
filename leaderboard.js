@@ -315,23 +315,26 @@ async function addMatchTypeTable(player, thisMatchType, season) {
 <h2 id="${thisMatchType}" style="float: left; width: 100%;">
     <img class="modeIcon" src="${iconURL}"> ${headerText}
 </h2>
-<table style="width: 600px !important; margin-bottom: 30px;">
+<table style="width: 800px !important; margin-bottom: 30px;">
     <thead>
     <tr>
         <th style="width: 12%">
             Rating
         </th>
-        <th style="width: 10%">
+        <th style="width: 8%">
             Season Wins
         </th>
-        <th style="width: 10%">
+        <th style="width: 8%">
             Season Losses
         </th>
-        <th style="width: 10%">
+        <th style="width: 8%">
             Total Wins
         </th>
-        <th style="width: 10%">
+        <th style="width: 8%">
             Total Losses
+        </th>
+        <th style="width: 8%">
+            Streak
         </th>
     </tr>
     </thead>
@@ -351,6 +354,9 @@ async function addMatchTypeTable(player, thisMatchType, season) {
         </td>
         <td>
             ${player.stats[thisMatchType].totalLosses}
+        </td>
+        <td>
+            ${player.stats[thisMatchType].streak}
         </td>
     </tr>
     </tbody>
