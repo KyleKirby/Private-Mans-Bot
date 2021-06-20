@@ -237,13 +237,18 @@ function addLeaderboardTable(players, sort, nextMatchType) {
 
 const teamNames = ["Blue Team", "Orange Team"];
 
-async function addMatchTypeTable(player, thisMatchType) {
+async function addMatchTypeTable(player, thisMatchType, season) {
     var moment = require('moment'); // require
 
     var matches = [];
     let headerText;
     let tSize;
     let iconURL;
+
+    let stats = player.stats[thisMatchType];
+
+    if(season >= 0)
+        stats = stats.season[season];
 
     switch (thisMatchType) {
         case Player.SIX_MANS_PROPERTY:
@@ -287,14 +292,14 @@ async function addMatchTypeTable(player, thisMatchType) {
         changeColor = 'green';
     }
 
-    if (player.stats[thisMatchType].lastRatingChange > 0) {
-        ratingChange = `<span style="color: green;">+${player.stats[thisMatchType].lastRatingChange.toFixed(2)}</span>`;
+    if (stats.lastRatingChange > 0) {
+        ratingChange = `<span style="color: green;">+${stats.lastRatingChange.toFixed(2)}</span>`;
     }
-    else if (player.stats[thisMatchType].lastRatingChange < 0) {
-        ratingChange = `<span style="color: red;">${player.stats[thisMatchType].lastRatingChange.toFixed(2)}</span>`;
+    else if (stats.lastRatingChange < 0) {
+        ratingChange = `<span style="color: red;">${stats.lastRatingChange.toFixed(2)}</span>`;
     }
     else {
-        ratingChange = `+${player.stats[thisMatchType].lastRatingChange.toFixed(2)}`;
+        ratingChange = `+${stats.lastRatingChange.toFixed(2)}`;
     }
 
     let pStr = `
@@ -333,13 +338,13 @@ async function addMatchTypeTable(player, thisMatchType) {
     <tbody>
     <tr>
         <td>
-            ${player.stats[thisMatchType].rating.toFixed(2)} ${ratingChange}
+            ${stats.rating.toFixed(2)} ${ratingChange}
         </td>
         <td>
-            ${player.stats[thisMatchType].wins}
+            ${stats.wins}
         </td>
         <td>
-            ${player.stats[thisMatchType].losses}
+            ${stats.losses}
         </td>
         <td>
             ${player.stats[thisMatchType].totalWins}
@@ -381,6 +386,9 @@ async function addMatchTypeTable(player, thisMatchType) {
         // found some matches
         for (match of matches) {
             //console.log(match);
+
+            if(!(match.timestamp in stats.matches))
+                continue;
 
             // get players for team 1
             let team0String = "";
@@ -425,17 +433,17 @@ async function addMatchTypeTable(player, thisMatchType) {
 
             let ratingChangeMatch;
 
-            if (player.stats[thisMatchType].matchRatingChange[match.timestamp] == undefined) {
+            if (stats.matchRatingChange[match.timestamp] == undefined) {
                 ratingChangeMatch = ``;
             }
-            else if (player.stats[thisMatchType].matchRatingChange[match.timestamp] > 0) {
-                ratingChangeMatch = `<span style="color: green;">+${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(2)}</span>`;
+            else if (stats.matchRatingChange[match.timestamp] > 0) {
+                ratingChangeMatch = `<span style="color: green;">+${stats.matchRatingChange[match.timestamp].toFixed(2)}</span>`;
             }
-            else if (player.stats[thisMatchType].matchRatingChange[match.timestamp] < 0) {
-                ratingChangeMatch = `<span style="color: red;">${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(2)}</span>`;
+            else if (stats.matchRatingChange[match.timestamp] < 0) {
+                ratingChangeMatch = `<span style="color: red;">${stats.matchRatingChange[match.timestamp].toFixed(2)}</span>`;
             }
             else {
-                ratingChangeMatch = `+${player.stats[thisMatchType].matchRatingChange[match.timestamp].toFixed(2)}`;
+                ratingChangeMatch = `+${stats.matchRatingChange[match.timestamp].toFixed(2)}`;
             }
 
             pStr += `<tr>
@@ -804,6 +812,7 @@ ${HEADER_STYLE}
 }
 
 async function showPlayer(req, res, player) {
+    let currentSeasonId = sixMans.getCurrentSeasonId();
     var pStr = `<!DOCTYPE html>
 <html>
 <head>
@@ -831,24 +840,81 @@ ${HEADER_STYLE}
         </br>
         <div class="navButtons">
             <ul class="nav nav-pills">
-	            <li class="active">
-                    <a href="#standard" data-toggle="tab">Standard</a>
+            <li class="active">
+                <a href="#season${currentSeasonId}" data-toggle="tab">Season ${currentSeasonId}</a>
+            </li>
+            `;
+            for(let i = 0; i < currentSeasonId; i++)
+            {
+                pStr += `
+                <li>
+                    <a href="#season${i}" data-toggle="tab">Season ${i}</a>
 	            </li>
-	            <li>
-                    <a href="#doubles" data-toggle="tab">Doubles</a>
-	            </li>
-	            <li>
-                    <a href="#solo" data-toggle="tab">Solo Duel</a>
-	            </li>
+                `;
+            }
+            pStr += `
             </ul>
         </div>
     </div>
 <div class="tab-content clearfix">`;
 
     try {
-        pStr += `<div class="tab-pane active" id="standard">` + await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY) + '</div>';
-        pStr += `<div class="tab-pane" id="doubles">` + await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY) + '</div>';
-        pStr += `<div class="tab-pane" id="solo">` + await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY) + '</div>';
+        pStr += `   <div class="tab-pane active" id="season${currentSeasonId}">
+                        <div class="container">
+                            <div class="navButtons">
+                                <ul class="nav nav-pills">
+                                    <li class="active">
+                                        <a href="#standard" data-toggle="tab">Standard</a>
+                                    </li>
+                                    <li>
+                                        <a href="#doubles" data-toggle="tab">Doubles</a>
+                                    </li>
+                                    <li>
+                                        <a href="#solo" data-toggle="tab">Solo Duel</a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="tab-content clearfix">`;
+
+        pStr += `               <div class="tab-pane active" id="standard">` + await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY, -1) + '</div>';
+        pStr += `               <div class="tab-pane" id="doubles">` + await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY, -1) + '</div>';
+        pStr += `               <div class="tab-pane" id="solo">` + await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY, -1) + '</div>';
+
+        pStr += `           </div>
+                        </div>
+                    </div>`;
+
+
+
+
+        for(let i = 0; i < currentSeasonId; i++) {
+            pStr += `   <div class="tab-pane" id="season${i}">
+                            <div class="container">
+                                <div class="navButtons">
+                                    <ul class="nav nav-pills">
+                                        <li class="active">
+                                            <a href="#standard${i}" data-toggle="tab">Standard</a>
+                                        </li>
+                                        <li>
+                                            <a href="#doubles${i}" data-toggle="tab">Doubles</a>
+                                        </li>
+                                        <li>
+                                            <a href="#solo${i}" data-toggle="tab">Solo Duel</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="tab-content clearfix">`;
+
+            pStr += `               <div class="tab-pane active" id="standard${i}">` + await addMatchTypeTable(player, Player.SIX_MANS_PROPERTY, i) + '</div>';
+            pStr += `               <div class="tab-pane" id="doubles${i}">` + await addMatchTypeTable(player, Player.FOUR_MANS_PROPERTY, i) + '</div>';
+            pStr += `               <div class="tab-pane" id="solo${i}">` + await addMatchTypeTable(player, Player.TWO_MANS_PROPERTY, i) + '</div>';
+
+            pStr += `           </div>
+                            </div>
+                        </div>`;
+        }
+
+
     }
     catch (err) {
         console.error(err);

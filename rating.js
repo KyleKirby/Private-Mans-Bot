@@ -16,8 +16,19 @@ exports.calculateRatingChange = function calculateRatingChange(rA, rB, kA, sA) {
     const qB = 10**(rB/400);
     const eA = qA/(qA+qB); // player A expected score
     const eB = qB/(qA+qB); // player B expected score
-
-
+/*
+    console.log(`
+rA ${rA}
+rB ${rB}
+kA ${kA}
+sA ${sA}
+qA ${qA}
+qB ${qB}
+eA ${eA}
+eB ${eB}
+kA*(sA-eA) = ${kA*(sA-eA)}
+`);
+*/
     // return the new score for player A = (current rating) + (K value) * (score + (expected score))
     return kA*(sA-eA);
 }
@@ -31,7 +42,7 @@ A recommended 'high' K value is 40, but that is for players with less than 30 ma
 Since we want to have only 10 placement matches, lets try a higher 'high' K value instead.
 
 */
-const K_HIGH = 120; // for placement matches
+const K_HIGH = 40; // for placement matches
 const K_MID = 20; // for low to mid tier players (below GC)
 const K_LOW = 10; // for high tier players (above GC) NOTE: for now this is not used
 
@@ -45,10 +56,10 @@ exports.getK = function getK(rating, totalMatches, streak) {
     if(streak > 5)
         streak = 5;
     if(totalMatches < NUMBER_OF_PLACEMENT_MATCHES) {
-        return K_HIGH * (streak + 1);
+        return K_HIGH * (streak);
     }
     else {
-        return K_MID * (streak + 1);
+        return K_MID * (streak);
     }
 }
 
