@@ -286,7 +286,7 @@ async function addMatchTypeTable(player, thisMatchType, season) {
         console.error(err)
     }
 
-    const playerRank = getPlayerRankIcon(player.stats[thisMatchType]);
+    const playerRank = getPlayerRankIcon(stats);
     let rankIconHeight = '30';
     let rankIconWidth = '30';
     if(playerRank.min >= Rating.GRAND_CHAMPION_1) {
