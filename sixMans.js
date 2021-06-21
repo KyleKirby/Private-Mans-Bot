@@ -295,8 +295,13 @@ module.exports.getCommandPrefix = function() {
     return userCommandPrefix;
 }
 
-module.exports.getCurrentSeasonId = function() {
-    return currentSeasonId;
+module.exports.getCurrentSeasonId = async function() {
+    const result = await db.collection('config').findOne({});
+    if(result != null) {
+        return result.currentSeasonId;
+    }
+    else
+        return currentSeasonId;
 }
 
 async function getPlayerRating(member, matchType) {

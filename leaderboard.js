@@ -834,7 +834,7 @@ ${HEADER_STYLE}
 }
 
 async function showPlayer(req, res, player) {
-    let currentSeasonId = sixMans.getCurrentSeasonId();
+    let currentSeasonId = await sixMans.getCurrentSeasonId();
     var pStr = `<!DOCTYPE html>
 <html>
 <head>
