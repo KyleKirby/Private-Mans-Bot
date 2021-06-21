@@ -181,6 +181,7 @@ module.exports = {
         if(msg.channel.type === 'dm')
             // for now, ignore commands from DM channel
             return;
+        const msgContent = msg.content.slice();
         msg.content = msg.content.toLowerCase();
         //msg.channel.send(`received user command '${msg.content}'`);
         let command = msg.content.split(' ')[0]; // let the command be the first word in the user message
@@ -206,7 +207,13 @@ module.exports = {
             case 'cf':
             case 'coinflip':
             case 'flip':
+            msg.content = msgContent;
             flipCoin(msg);
+            break;
+
+            case 'f':
+            case 'force':
+            forceCommand(msg);
             break;
 
             case 'help':
@@ -852,6 +859,40 @@ function flipCoin(msg) {
     }
     msg.channel.send(`<@${msg.author.id}> ${coinSides[result]}`);
 
+}
+
+async function forceCommand(msg) {
+    if(msg.member.roles.cache.has(config.SIX_MANS_ROLE) === false) {
+        // user does not have sufficient permissions for this command
+        return;
+    }
+    const args = msg.content.split(' '); // let the command be the first word in the user message
+    if(args.length < 2) {
+        return;
+    }
+    let arg = args[1];
+    switch(arg) {
+        case 'cancel':
+            if(args.length != 3) {
+                return;
+            }
+            // force the specified match to be canceled
+            // check if valid match id
+            const matchId = Number(args[2]);
+            if(matchId.isNaN) {
+                // invalid parameter
+                return;
+            }
+
+            // valid number, check if this is a valid match id
+            if(matchId in matches) {
+                // this is a valid match id, the match has not be reported yet, and the user is in the match
+                let match = matches[matchId];
+                cancelMatch(msg, match);
+                msg.channel.send(`>>> <@${msg.member.id}> has forced cancellation of Match ID ${match.id}. The match will now be canceled.\n${userMentionString(match.players)}`);
+            }
+            break;
+    }
 }
 
 function getMemberTeamId(match, memberId) {
