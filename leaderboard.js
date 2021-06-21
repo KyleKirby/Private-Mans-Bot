@@ -203,7 +203,15 @@ function addLeaderboardTable(players, sort, nextMatchType) {
         rank = entry.rank.toString();
 
         const playerRank = getPlayerRankIcon(entry.stats[nextMatchType]);
-        icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30">`;
+        let rankIconHeight = '30';
+        let rankIconWidth = '30';
+        if(playerRank.min >= Rating.GRAND_CHAMPION_1) {
+            rankIconWidth = '40';
+        }
+        else if(playerRank.min == Rating.CHAMPION_3) {
+            rankIconWidth = '35';
+        }
+        icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="${rankIconHeight}" width="${rankIconWidth}" style="margin-bottom: 5px;">`;
 
         let ratingChange;
         if (entry.stats[matchType].lastRatingChange > 0) {
@@ -279,7 +287,15 @@ async function addMatchTypeTable(player, thisMatchType, season) {
     }
 
     const playerRank = getPlayerRankIcon(player.stats[thisMatchType]);
-    icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="30" width="30" style="margin-bottom: 5px;">`;
+    let rankIconHeight = '30';
+    let rankIconWidth = '30';
+    if(playerRank.min >= Rating.GRAND_CHAMPION_1) {
+        rankIconWidth = '40';
+    }
+    else if(playerRank.min == Rating.CHAMPION_3) {
+        rankIconWidth = '35';
+    }
+    icon = `<img src="${playerRank.icon}" alt="${playerRank.title}" height="${rankIconHeight}" width="${rankIconWidth}" style="margin-bottom: 5px;">`;
 
     let ratingChange;
     let changeColor; // either red or green
@@ -850,7 +866,7 @@ ${HEADER_STYLE}
                 <a href="#season${currentSeasonId}" data-toggle="tab">Season ${currentSeasonId}</a>
             </li>
             `;
-            for(let i = 0; i < currentSeasonId; i++)
+            for(let i = currentSeasonId - 1; i >= 0; i--)
             {
                 pStr += `
                 <li>
@@ -893,7 +909,7 @@ ${HEADER_STYLE}
 
 
 
-        for(let i = 0; i < currentSeasonId; i++) {
+        for(let i = currentSeasonId - 1; i >= 0; i--) {
             pStr += `   <div class="tab-pane" id="season${i}">
                             <div class="container">
                                 <div class="navButtons">
