@@ -625,7 +625,7 @@ function showHelp(req, res) {
             <div class="cmd">${userCommandPrefix}3</div>
         </td>
         <td>
-            Add yourself to the standard (3v3) queue.
+            Add yourself to the rated standard (3v3) queue.
         </td>
     </tr>
     <tr>
@@ -633,7 +633,7 @@ function showHelp(req, res) {
             <div class="cmd">${userCommandPrefix}2</div>
         </td>
         <td>
-            Add yourself to the doubles (2v2) queue.
+            Add yourself to the rated doubles (2v2) queue.
         </td>
     </tr>
     <tr>
@@ -641,7 +641,55 @@ function showHelp(req, res) {
             <div class="cmd">${userCommandPrefix}1</div>
         </td>
         <td>
-            Add yourself to the solo duel (1v1) queue.
+            Add yourself to the rated solo duel (1v1) queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}3u</div>
+        </td>
+        <td>
+            Add yourself to the unrated standard (3v3) queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}2u</div>
+        </td>
+        <td>
+            Add yourself to the unrated doubles (2v2) queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}1u</div>
+        </td>
+        <td>
+            Add yourself to the unrated solo duel (1v1) queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}l ${userCommandPrefix}leave</div>
+        </td>
+        <td>
+            Remove yourself from queue.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}s ${userCommandPrefix}status</div>
+        </td>
+        <td>
+            Show the queue status.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}r ${userCommandPrefix}random</div>
+        </td>
+        <td>
+            Vote for random teams.
         </td>
     </tr>
     <tr>
@@ -662,10 +710,51 @@ function showHelp(req, res) {
     </tr>
     <tr>
         <td>
+            <span class="cmd">${userCommandPrefix}report</span> [match ID] &lt; w | l | win | loss &gt;
+        </td>
+        <td>
+            Report the result of your match.</br>
+            Optionally include match ID to report the result of a previous match.
+        </td>
+    </tr>
+    <tr>
+        <td>
             <div class="cmd">${userCommandPrefix}cancel</div>
         </td>
         <td>
             Vote to cancel the match you are currently in.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}matches</div>
+        </td>
+        <td>
+            Show ongoing matches.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}help</div>
+        </td>
+        <td>
+            Display help URL.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">${userCommandPrefix}lb ${userCommandPrefix}leaderboard</div>
+        </td>
+        <td>
+            Display leaderboard URL.
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div class="cmd">Admin only commands</div>
+        </td>
+        <td>
+
         </td>
     </tr>
     <tr>
@@ -682,34 +771,10 @@ function showHelp(req, res) {
     </tr>
     <tr>
         <td>
-            <div class="cmd">${userCommandPrefix}help</div>
+            <div class="cmd">${userCommandPrefix}force cancel &ltmatch ID&gt</div>
         </td>
         <td>
-            Display help URL.
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <div class="cmd">${userCommandPrefix}l ${userCommandPrefix}leave</div>
-        </td>
-        <td>
-            Remove yourself from queue.
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <div class="cmd">${userCommandPrefix}lb ${userCommandPrefix}leaderboard</div>
-        </td>
-        <td>
-            Display leaderboard URL.
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <div class="cmd">${userCommandPrefix}matches</div>
-        </td>
-        <td>
-            Show ongoing matches.
+            Force cancellation of a match with the specified ID.
         </td>
     </tr>
     <tr>
@@ -722,37 +787,11 @@ function showHelp(req, res) {
     </tr>
     <tr>
         <td>
-            <div class="cmd">${userCommandPrefix}r ${userCommandPrefix}random</div>
-        </td>
-        <td>
-            Vote for random teams.
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <span class="cmd">${userCommandPrefix}report</span> [match ID] &lt; w | l | win | loss &gt;
-        </td>
-        <td>
-            Report the result of your match.</br>
-            Optionally include match ID to report the result of a previous match.
-        </td>
-    </tr>
-    <tr>
-        <td>
             <div class="cmd">${userCommandPrefix}set</div>
         </td>
         <td>
-            Admin only command that will change some global settings.</br>
             Valid command parameters are:</br>
             <span class="cmd" style="padding-left: 20px;">${userCommandPrefix}set prefix</span> &lt;new prefix&gt;
-        </td>
-    </tr>
-    <tr>
-        <td>
-            <div class="cmd">${userCommandPrefix}s ${userCommandPrefix}status</div>
-        </td>
-        <td>
-            Show the queue status.
         </td>
     </tr>
     <tr>
