@@ -355,7 +355,7 @@ async function addMatchTypeTable(player, thisMatchType, season) {
         <td>
             ${player.stats[thisMatchType].totalLosses}
         </td>
-        <td>
+        <td style="color: ${player.stats[thisMatchType].streak < 0 ? '#205dff' : 'orange'};">
             ${player.stats[thisMatchType].streak}
         </td>
     </tr>
