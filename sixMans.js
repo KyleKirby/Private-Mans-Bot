@@ -807,6 +807,7 @@ function createMatch(msg, queue, teamSize, rated) {
     // start 2 minute timer to allow players to vote on teams
     match.timer = setTimeout (() => {
         // handle timeout here
+        match.timer = null;
         msg.channel.send(`>>> Voting for Match ID ${match.id} has timed out.`);
         let highestVote = match.getHighestVote();
         switch(highestVote) {
@@ -833,6 +834,11 @@ function displayHelp(msg) {
 
 function endMatch(msg, match) {
     match.ended = true;
+
+    if(match.timer !== null) {
+        clearTimeout(match.timer);
+        match.timer = null;
+    }
 
     if(match.started && match.voiceChannels[0] != null && match.voiceChannels[1] != null) {
         // if the match started, then voice channels were created
@@ -1107,12 +1113,14 @@ function messageCaptains(msg, match) {
     // restart timer to allow captains to pick teams
     if(match.timer !== null) {
         clearTimeout(match.timer);
+        match.timer = null;
     }
 
     match.timer = setTimeout (() => {
         // handle timeout here
         msg.channel.send(`>>> Match ID ${match.id} has timed out. Canceling match.`);
         match.canceled = true;
+        match.timer = null;
         endMatch(msg, match);
     }, 120000);
 
@@ -2214,6 +2222,7 @@ Password: ${match.password}`;
     match.timer = setTimeout (() => {
         // handle timeout here
         msg.channel.send(`>>> Match ID ${match.id} has timed out. The match will now be canceled.\n${userMentionString(match.players)}`);
+        match.timer = null;
         cancelMatch(msg, match);
     }, matchTimeout);
 }

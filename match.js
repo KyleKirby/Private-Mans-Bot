@@ -206,6 +206,7 @@ Match.prototype.start = function start() {
     this.password = s;
     if(this.timer !== null) {
         clearTimeout(this.timer);
+        this.timer = null;
     }
 };
 
