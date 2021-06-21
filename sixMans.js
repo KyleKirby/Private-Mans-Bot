@@ -337,25 +337,18 @@ async function getPlayerRating(member, matchType) {
 }
 
 function isUserInQueue(id) {
-    for (m of queueSix) {
-        if(m.id === id)
-        {
-            // member is already in queue
-            return true;
-        }
-    }
-    for (m of queueFour) {
-        if(m.id === id)
-        {
-            // member is already in queue
-            return true;
-        }
-    }
-    for (m of queueTwo) {
-        if(m.id === id)
-        {
-            // member is already in queue
-            return true;
+    const queueList = [
+        queueSix, queueSixTier1, queueSixTier2, queueSixTier3, queueSixTier4,
+        queueFour, queueFourTier1, queueFourTier2, queueFourTier3, queueFourTier4,
+        queueTwo, queueTwoTier1, queueTwoTier2, queueTwoTier3, queueTwoTier4
+    ];
+    for(queue of queueList) {
+        for(m of queue) {
+            if(m.id === id)
+            {
+                // member is already in queue
+                return true;
+            }
         }
     }
     return false;
@@ -628,59 +621,126 @@ function clearQueue(msg) {
         return;
     }
     let args = msg.content.split(' ');
-    if(args.length === 1 || (args.length === 2 && args[1] === '3')) {
-        // clearing standard queue
-        if(queueSix.length > 0) {
-            queueSix = [];
-            msg.channel.send(`>>> Cleared standard queue.`);
-        }
-        else {
-            msg.channel.send(`>>> Standard queue is already empty.`);
-        }
+    if(args.length === 2) {
+        switch(args[1]) {
+            case 'all':
+            {
+                const queueList = [
+                    queueSix, queueSixTier1, queueSixTier2, queueSixTier3, queueSixTier4,
+                    queueFour, queueFourTier1, queueFourTier2, queueFourTier3, queueFourTier4,
+                    queueTwo, queueTwoTier1, queueTwoTier2, queueTwoTier3, queueTwoTier4
+                ];
+                for(queue of queueList) {
+                    if(queue.length > 0)
+                        queue.splice(0);
+                }
+                msg.channel.send(`>>> Clearing all queues.`);
+            }
+            break;
+            case '3':
+            {
+                // clear all standard queues
+                const queueList = [queueSix, queueSixTier1, queueSixTier2, queueSixTier3, queueSixTier4];
+                for(queue of queueList) {
+                    if(queue.length > 0)
+                        queue.splice(0);
+                }
+                msg.channel.send(`>>> Clearing all standard queues.`);
+            }
+            break;
+            case '31':
+                // clear tier 1 standard queue
+                queueSixTier1.splice(0);
+                msg.channel.send(`>>> Clearing tier 1 standard queue.`);
+            break;
+            case '32':
+                // clear tier 2 standard queue
+                queueSixTier2.splice(0);
+                msg.channel.send(`>>> Clearing tier 2 standard queue.`);
+            break;
+            case '33':
+                // clear tier 3 standard queue
+                queueSixTier3.splice(0);
+                msg.channel.send(`>>> Clearing tier 3 standard queue.`);
+            break;
+            case '34':
+                // clear tier 4 standard queue
+                queueSixTier4.splice(0);
+                msg.channel.send(`>>> Clearing tier 4 standard queue.`);
+            break;
+            case '2':
+            {
+                // clear all doubles queues
+                const queueList = [queueFour, queueFourTier1, queueFourTier2, queueFourTier3, queueFourTier4];
+                for(queue of queueList) {
+                    if(queue.length > 0)
+                        queue.splice(0);
+                }
+            }
+            break;
+            case '21':
+                // clear tier 1 doubles queue
+                queueFourTier1.splice(0);
+                msg.channel.send(`>>> Clearing tier 1 doubles queue.`);
+            break;
+            case '22':
+                // clear tier 2 doubles queue
+                queueFourTier2.splice(0);
+                msg.channel.send(`>>> Clearing tier 2 doubles queue.`);
+            break;
+            case '23':
+                // clear tier 3 doubles queue
+                queueFourTier3.splice(0);
+                msg.channel.send(`>>> Clearing tier 3 doubles queue.`);
+            break;
+            case '24':
+                // clear tier 4 doubles queue
+                queueFourTier4.splice(0);
+                msg.channel.send(`>>> Clearing tier 4 doubles queue.`);
+            break;
+            case '1':
+            {
+                // clear all solo duel queues
+                const queueList = [queueTwo, queueTwoTier1, queueTwoTier2, queueTwoTier3, queueTwoTier4];
+                for(queue of queueList) {
+                    if(queue.length > 0)
+                        queue.splice(0);
+                }
+            }
+            break;
+            case '11':
+                // clear tier 1 solo duel queue
+                queueTwoTier1.splice(0);
+                msg.channel.send(`>>> Clearing tier 1 solo duel queue.`);
+            break;
+            case '12':
+                // clear tier 2 solo duel queue
+                queueTwoTier2.splice(0);
+                msg.channel.send(`>>> Clearing tier 2 solo duel queue.`);
+            break;
+            case '13':
+                // clear tier 3 solo duel queue
+                queueTwoTier3.splice(0);
+                msg.channel.send(`>>> Clearing tier 3 solo duel queue.`);
+            break;
+            case '14':
+                // clear tier 4 solo duel queue
+                queueTwoTier4.splice(0);
+                msg.channel.send(`>>> Clearing tier 4 solo duel queue.`);
+            break;
+            case '3u':
+                queueSix.splice(0);
+                msg.channel.send(`>>> Clearing unrated standard queue.`);
+            break;
+            case '2u':
+                queueFour.splice(0);
+                msg.channel.send(`>>> Clearing unrated doubles queue.`);
+            break;
+            case '1u':
+                queueTwo.splice(0);
+                msg.channel.send(`>>> Clearing unrated solo duel queue.`);
+            break;
 
-    }
-    else if(args.length === 2 && args[1] === '2') {
-        // clearing doubles queue
-        if(queueFour.length > 0) {
-            queueFour = [];
-            msg.channel.send(`>>> Cleared doubles queue.`);
-        }
-        else {
-            msg.channel.send(`>>> Doubles queue is already empty.`);
-        }
-    }
-    else if(args.length === 2 && args[1] === '1') {
-        // clearing solo duel queue
-        if(queueTwo.length > 0) {
-            queueTwo = [];
-            msg.channel.send(`>>> Cleared solo duel queue.`);
-        }
-        else {
-            msg.channel.send(`>>> Solo duel queue is already empty.`);
-        }
-    }
-    else if(args.length === 2 && args[1] === 'all') {
-        if(queueSix.length === 0 && queueFour.length === 0 && queueTwo.length === 0) {
-            msg.channel.send(`>>> All queues are already empty.`);
-        }
-        else {
-            let s = '>>> ';
-            // clearing standard queue
-            if(queueSix.length > 0) {
-                queueSix = [];
-                s += `Cleared standard queue.\n`;
-            }
-            // clearing doubles queue
-            if(queueFour.length > 0) {
-                queueFour = [];
-                s += `Cleared doubles queue.\n`;
-            }
-            // clearing solo duel queue
-            if(queueTwo.length > 0) {
-                queueTwo = [];
-                s += `Cleared solo duel queue.\n`;
-            }
-            msg.channel.send(s);
         }
     }
 }
