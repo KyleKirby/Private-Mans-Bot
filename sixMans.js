@@ -196,7 +196,7 @@ module.exports = {
             break;
 
             case 'cancel':
-            cancelMatch(msg);
+            voteCancelMatch(msg);
             break;
 
             case 'clear':
