@@ -530,79 +530,84 @@ function addToSoloDuelQueue(msg) {
     addUserToQueue(msg, queueTwo, config.TWO_MANS_MAX_QUEUE_SIZE, false, "solo duel");
 }
 
-function cancelMatch(msg) {
+function cancelMatch(msg, match) {
     // TODO
+    if(match == null)
+        return; // user is not in a match, ignore
+
+    match.cancel();
+    endMatch(msg, match);
+
+    // since the match was canceled, the player gained 0 MMR for this match, need update matchRatingChange for this match
+    for(p of match.players) {
+        let query = {_id: p.id};
+
+        var matchType;
+        switch(match.teamSize) {
+            /*
+            case config.SIX_MANS_TEAM_SIZE:
+                matchType = Player.SIX_MANS_PROPERTY;
+                break;
+            */
+            case config.FOUR_MANS_TEAM_SIZE:
+                matchType = Player.FOUR_MANS_PROPERTY;
+                break;
+
+            case config.TWO_MANS_TEAM_SIZE:
+                matchType = Player.TWO_MANS_PROPERTY;
+                break;
+            default:
+                matchType = Player.SIX_MANS_PROPERTY;
+        }
+
+        let update = {};
+        update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = 0;
+
+        db.collection('players').updateOne(query, {$set: update}, (err, res) => {
+            if(err) {
+                handleDataBaseError(err, 'Error updating player in players collection\n', false);
+            }
+        });
+
+    }
+}
+
+function voteCancelMatch(msg) {
     let match = getUserMatch(msg.member.id);
     if(match == null)
         return; // user is not in a match, ignore
 
-    let isMatchCanceled = false;
-    if(match.addVoteToCancel(msg.member.id)) {
-        let s = `>>> Match ID ${match.id} votes to cancel: ${match.cancelVotes}\n`;
-        switch(match.teamSize) {
-            case config.SIX_MANS_TEAM_SIZE:
-                // require 3 players
-                if(match.cancelVotes > config.SIX_MANS_MIN_VOTE_COUNT) {
-                    s += "Canceling match.";
-                    isMatchCanceled = true;
-                }
-                break;
-
-            case config.FOUR_MANS_TEAM_SIZE:
-                // require 2 players
-                if(match.cancelVotes > config.FOUR_MANS_MIN_VOTE_COUNT) {
-                    s += "Canceling match.";
-                    isMatchCanceled = true;
-                }
-                break;
-            default:
-                // 1v1 match, require both players
-                if(match.cancelVotes == 2) {
-                    s += "Canceling match.";
-                    isMatchCanceled = true;
-                }
-        }
-        if(isMatchCanceled) {
-            match.cancel();
-            endMatch(msg, match);
-
-            // since the match was canceled, the player gained 0 MMR for this match, need update matchRatingChange for this match
-            for(p of match.players) {
-                let query = {_id: p.id};
-
-                var matchType;
-                switch(match.teamSize) {
-                    /*
-                    case config.SIX_MANS_TEAM_SIZE:
-                        matchType = Player.SIX_MANS_PROPERTY;
-                        break;
-                    */
-                    case config.FOUR_MANS_TEAM_SIZE:
-                        matchType = Player.FOUR_MANS_PROPERTY;
-                        break;
-
-                    case config.TWO_MANS_TEAM_SIZE:
-                        matchType = Player.TWO_MANS_PROPERTY;
-                        break;
-                    default:
-                        matchType = Player.SIX_MANS_PROPERTY;
-                }
-
-                let update = {};
-                update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = 0;
-
-                db.collection('players').updateOne(query, {$set: update}, (err, res) => {
-                    if(err) {
-                        handleDataBaseError(err, 'Error updating player in players collection\n', false);
+        let isMatchCanceled = false;
+        if(match.addVoteToCancel(msg.member.id)) {
+            let s = `>>> Match ID ${match.id} votes to cancel: ${match.cancelVotes}\n`;
+            switch(match.teamSize) {
+                case config.SIX_MANS_TEAM_SIZE:
+                    // require 3 players
+                    if(match.cancelVotes > config.SIX_MANS_MIN_VOTE_COUNT) {
+                        s += "Canceling match.";
+                        isMatchCanceled = true;
                     }
-                });
+                    break;
 
+                case config.FOUR_MANS_TEAM_SIZE:
+                    // require 2 players
+                    if(match.cancelVotes > config.FOUR_MANS_MIN_VOTE_COUNT) {
+                        s += "Canceling match.";
+                        isMatchCanceled = true;
+                    }
+                    break;
+                default:
+                    // 1v1 match, require both players
+                    if(match.cancelVotes == 2) {
+                        s += "Canceling match.";
+                        isMatchCanceled = true;
+                    }
+            }
+            msg.channel.send(s);
+            if(isMatchCanceled) {
+                cancelMatch(msg, match);
             }
         }
-        msg.channel.send(s);
-    }
-
-
 }
 
 function clearQueue(msg) {
@@ -2098,6 +2103,13 @@ Password: ${match.password}`;
         })
         .catch(console.error);})
     .catch(console.error);
+
+    const matchTimeout = 10800000; // ms // 3 hours
+    match.timer = setTimeout (() => {
+        // handle timeout here
+        msg.channel.send(`>>> Match ID ${match.id} has timed out. The match will now be canceled.\n${userMentionString(match.players)}`);
+        cancelMatch(msg, match);
+    }, matchTimeout);
 }
 
 function undoMatchResult(msg) {
