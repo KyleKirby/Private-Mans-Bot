@@ -1930,20 +1930,29 @@ async function reportResult(match) {
 
             // we have this players new rating, now update mongoDB with the rating
             let update = {};
-            if(winner) {
-                update[`stats.${matchType}.wins`] = m.stats[matchType].wins + 1;
-                update[`stats.${matchType}.totalWins`] = m.stats[matchType].totalWins + 1;
-            }
-            else {
-                update[`stats.${matchType}.losses`] = m.stats[matchType].losses + 1;
-                update[`stats.${matchType}.totalLosses`] = m.stats[matchType].totalLosses + 1;
-            }
-            if(match.rated)
-            {
+            if(match.rated) {
+                // rated match
+                if(winner) {
+                    update[`stats.${matchType}.wins`] = m.stats[matchType].wins + 1;
+                    update[`stats.${matchType}.totalWins`] = m.stats[matchType].totalWins + 1;
+                }
+                else {
+                    update[`stats.${matchType}.losses`] = m.stats[matchType].losses + 1;
+                    update[`stats.${matchType}.totalLosses`] = m.stats[matchType].totalLosses + 1;
+                }
                 update[`stats.${matchType}.rating`] = newRating;
                 update[`stats.${matchType}.matchRatingChange.${match.timestamp}`] = d;
                 update[`stats.${matchType}.lastRatingChange`] = d;
                 update[`stats.${matchType}.streak`] = m.stats[matchType].streak;
+            }
+            else {
+                // unrated match
+                if(winner) {
+                    update[`stats.${matchType}.totalWins`] = m.stats[matchType].totalWins + 1;
+                }
+                else {
+                    update[`stats.${matchType}.totalLosses`] = m.stats[matchType].totalLosses + 1;
+                }
             }
 
             const query = {_id: m._id};
