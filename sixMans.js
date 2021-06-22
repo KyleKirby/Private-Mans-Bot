@@ -963,6 +963,45 @@ async function forceCommand(msg) {
                 msg.channel.send(`>>> <@${msg.member.id}> has forced cancellation of Match ID ${match.id}. The match will now be canceled.\n${userMentionString(match.players)}`);
             }
             break;
+        case 'archive':
+            // archive player stats
+            if(currentSeasonId === 0) // don't need to archive if it is only season 0
+                return;
+            if(args.length != 3) {
+                return;
+            }
+            const userId = args[2];
+            if(Number(userId).isNaN)
+                return;
+            // add a document for this player if it does not already exist
+            let query = {_id: userId};
+            db.collection('players').findOne(query, async (err, player) => {
+                if(err) {
+                    handleDataBaseError(err, `Error finding member ID ${userId} in players collection\n`, false);
+                }
+                else {
+                    if(player != null) {
+                        // found player document
+                        let rating = 0;
+                        try {
+                            const member = await msg.guild.members.fetch(player._id);
+                            rating = Rating.getHighestRank(member.roles.cache).min * 1.05;
+                        }
+                        catch(e) {
+                            // player is not in discord server
+                            if(e.name == 'DiscordAPIError' && e.message != 'Unknown Member')
+                                console.error(e);
+                        }
+                        archivePlayerStatsForNewSeason(player, rating, currentSeasonId - 1);
+
+                    }
+                    else {
+                        console.log(`Force archive ${userId} did not find player document`);
+                    }
+                }
+            });
+
+            break;
     }
 }
 
@@ -1132,6 +1171,44 @@ Captains now have 2 minutes to pick teams.`);
     messageCaptain(msg, match, 1);
 }
 
+async function archivePlayerStatsForNewSeason(player, newRating, seasonId) {
+    let update = {};
+    for(matchType in player.stats)
+    {
+        // reset stats for new season
+        update[`stats.${matchType}.wins`] = 0;
+        update[`stats.${matchType}.losses`] = 0;
+        update[`stats.${matchType}.matches`] = {};
+        update[`stats.${matchType}.rating`] = newRating;
+        update[`stats.${matchType}.matchRatingChange`] = {};
+        update[`stats.${matchType}.lastRatingChange`] = 0;
+        update[`stats.${matchType}.streak`] = 0;
+        if(player.stats[matchType].streak == undefined)
+            player.stats[matchType].streak = 0;
+        // store this season's stats here
+        if(player.stats[matchType].season == undefined)
+            player.stats[matchType].season = {};
+        player.stats[matchType].season[seasonId] = {
+            wins: player.stats[matchType].wins,
+            losses: player.stats[matchType].losses,
+            matches: player.stats[matchType].matches,
+            rating: player.stats[matchType].rating,
+            matchRatingChange: player.stats[matchType].matchRatingChange,
+            lastRatingChange: player.stats[matchType].lastRatingChange,
+            streak: player.stats[matchType].streak,
+        };
+        update[`stats.${matchType}.season`] = player.stats[matchType].season;
+    }
+    const query = {_id: player._id};
+
+    try {
+        db.collection('players').updateOne(query, {$set: update});
+    }
+    catch (err) {
+        handleDataBaseError(err, 'Error updating player result\n', false);
+    }
+}
+
 async function newCommand(msg) {
     if(msg.member.roles.cache.has(config.SIX_MANS_ROLE) === false) {
         // user does not have sufficient permissions for this command
@@ -1153,49 +1230,16 @@ async function newCommand(msg) {
             }
             else {
                 for(p of players) {
+                    let rating = 0;
                     try {
                         const member = await msg.guild.members.fetch(p._id);
-                        const rating = Rating.getHighestRank(member.roles.cache).min * 1.05;
-                        let update = {};
-                        for(matchType in p.stats)
-                        {
-                            // reset stats for new season
-                            update[`stats.${matchType}.wins`] = 0;
-                            update[`stats.${matchType}.losses`] = 0;
-                            update[`stats.${matchType}.matches`] = {};
-                            update[`stats.${matchType}.rating`] = rating;
-                            update[`stats.${matchType}.matchRatingChange`] = {};
-                            update[`stats.${matchType}.lastRatingChange`] = 0;
-                            update[`stats.${matchType}.streak`] = 0;
-                            if(p.stats[matchType].streak == undefined)
-                                p.stats[matchType].streak = 0;
-                            // store this season's stats here
-                            if(p.stats[matchType].season == undefined)
-                                p.stats[matchType].season = {};
-                            p.stats[matchType].season[currentSeasonId] = {
-                                wins: p.stats[matchType].wins,
-                                losses: p.stats[matchType].losses,
-                                matches: p.stats[matchType].matches,
-                                rating: p.stats[matchType].rating,
-                                matchRatingChange: p.stats[matchType].matchRatingChange,
-                                lastRatingChange: p.stats[matchType].lastRatingChange,
-                                streak: p.stats[matchType].streak,
-                            };
-                            update[`stats.${matchType}.season`] = p.stats[matchType].season;
-                        }
-                        const query = {_id: p._id};
-
-                        try {
-                            db.collection('players').updateOne(query, {$set: update});
-                        }
-                        catch (err) {
-                            handleDataBaseError(err, 'Error updating player result\n', false);
-                        }
+                        rating = Rating.getHighestRank(member.roles.cache).min * 1.05;
                     }
                     catch(e) {
-                        console.error(e);
-                        continue;
+                        if(e.name != 'DiscordAPIError' && e.message != 'Unknown Member')
+                            console.error(e);
                     }
+                    archivePlayerStatsForNewSeason(p, rating, currentSeasonId);
                 }
                 currentSeasonId += 1;
                 db.collection('config').updateOne({}, {$set: {currentSeasonId: currentSeasonId}}, (err, res) => {
