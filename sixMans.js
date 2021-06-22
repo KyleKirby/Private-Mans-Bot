@@ -965,14 +965,19 @@ async function forceCommand(msg) {
             break;
         case 'archive':
             // archive player stats
-            if(currentSeasonId === 0) // don't need to archive if it is only season 0
+            if(currentSeasonId === 0) { // don't need to archive if it is only season 0
+                msg.channel.send(`Cannot archive with currentSeasonId ${currentSeasonId}`);
                 return;
+            }
             if(args.length != 3) {
+                msg.channel.send(`Incorrect number of arguments provided`);
                 return;
             }
             const userId = args[2];
-            if(Number(userId).isNaN)
+            if(Number(userId).isNaN) {
+                msg.channel.send(`force archive ${userId} NaN`);
                 return;
+            }
             // add a document for this player if it does not already exist
             let query = {_id: userId};
             db.collection('players').findOne(query, async (err, player) => {
@@ -992,11 +997,12 @@ async function forceCommand(msg) {
                             if(e.name == 'DiscordAPIError' && e.message != 'Unknown Member')
                                 console.error(e);
                         }
-                        archivePlayerStatsForNewSeason(player, rating, currentSeasonId - 1);
+                        await archivePlayerStatsForNewSeason(player, rating, currentSeasonId - 1);
+                        msg.channel.send(`Archived ${userId} player stats to season ${currentSeasonId - 1}`);
 
                     }
                     else {
-                        console.log(`Force archive ${userId} did not find player document`);
+                        msg.channel.send(`force archive ${userId} did not find player document`);
                     }
                 }
             });
@@ -1202,7 +1208,8 @@ async function archivePlayerStatsForNewSeason(player, newRating, seasonId) {
     const query = {_id: player._id};
 
     try {
-        db.collection('players').updateOne(query, {$set: update});
+        await db.collection('players').updateOne(query, {$set: update});
+        console.log(`Archived player ${player.name}, id ${player._id} to season id ${seasonId}`);
     }
     catch (err) {
         handleDataBaseError(err, 'Error updating player result\n', false);
