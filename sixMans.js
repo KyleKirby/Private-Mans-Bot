@@ -354,6 +354,17 @@ function isUserInQueue(id) {
     return false;
 }
 
+function isUserInThisQueue(id, queue) {
+    for(m of queue) {
+        if(m.id === id)
+        {
+            // member is already in queue
+            return true;
+        }
+    }
+    return false;
+}
+
 function startUserQueueTimer(msg) {
     // queueTimeout = 3 hrs
     timerMap[msg.member.id] = setTimeout (() => {
@@ -364,6 +375,10 @@ function startUserQueueTimer(msg) {
 
 function addUserToQueue(msg, queue, maxQueueSize, rated, queueName)
 {
+    if(isUserInThisQueue(msg.member.id, queue)) {
+        return;
+    }
+
     queue.push(msg.member);
     var s = `>>> Added <@${msg.member.id}> to the ${queueName} queue.
 Users in queue: ${queueString(queue)}\n`;
@@ -411,8 +426,6 @@ async function addToRatedStandardQueue(msg) {
         // user is already in a match, ignore
         return;
     }
-    if(isUserInQueue(msg.member.id))
-        return;
 
     const rating = await getPlayerRating(msg.member, Player.SIX_MANS_PROPERTY);
 
@@ -443,8 +456,6 @@ async function addToRatedDoublesQueue(msg) {
         // user is already in a match, ignore
         return;
     }
-    if(isUserInQueue(msg.member.id))
-        return;
 
     const rating = await getPlayerRating(msg.member, Player.FOUR_MANS_PROPERTY);
 
@@ -475,8 +486,6 @@ async function addToRatedSoloDuelQueue(msg) {
         // user is already in a match, ignore
         return;
     }
-    if(isUserInQueue(msg.member.id))
-        return;
 
     const rating = await getPlayerRating(msg.member, Player.TWO_MANS_PROPERTY);
 
@@ -507,8 +516,6 @@ function addToStandardQueue(msg) {
         // user is already in a match, ignore
         return;
     }
-    if(isUserInQueue(msg.member.id))
-        return;
 
     addUserToQueue(msg, queueSix, config.SIX_MANS_MAX_QUEUE_SIZE, false, "standard");
 }
@@ -518,8 +525,6 @@ function addToDoublesQueue(msg) {
         // user is already in a match, ignore
         return;
     }
-    if(isUserInQueue(msg.member.id))
-        return;
 
     addUserToQueue(msg, queueFour, config.FOUR_MANS_MAX_QUEUE_SIZE, false, "doubles");
 }
@@ -529,8 +534,6 @@ function addToSoloDuelQueue(msg) {
         // user is already in a match, ignore
         return;
     }
-    if(isUserInQueue(msg.member.id))
-        return;
 
     addUserToQueue(msg, queueTwo, config.TWO_MANS_MAX_QUEUE_SIZE, false, "solo duel");
 }
@@ -748,6 +751,8 @@ function clearQueue(msg) {
 function createMatch(msg, queue, teamSize, rated) {
     var match = Match(queue, nextMatchId, teamSize, rated);
     queue.splice(0, queue.length);
+
+    removeUsersFromQueue(match.players);
 
     for (const user of match.players) {
 
@@ -1353,23 +1358,42 @@ function rankPlayersTwo(p1,p2) {
         return 0;
 }
 
+function removeUsersFromQueue(users) {
+    const queueList = [
+        queueSix, queueSixTier1, queueSixTier2, queueSixTier3, queueSixTier4,
+        queueFour, queueFourTier1, queueFourTier2, queueFourTier3, queueFourTier4,
+        queueTwo, queueTwoTier1, queueTwoTier2, queueTwoTier3, queueTwoTier4
+    ];
+    for(user of users) {
+        for(queue of queueList) {
+            const len = queue.length;
+            for(let i = 0; i < len; i ++) {
+                if(queue[i].id === user.id) {
+                    queue.splice(i, 1);
+                    break;
+                }
+            }
+        }
+    }
+
+}
+
 function removeUserFromQueue(msg) {
     // find if the user is in queue, if they are in one them remove them
+    let s = ">>> ";
     let i = 0;
     for (m of queueSix) {
         if(m.id === msg.member.id)
         {
             // remove this member from the queue
             queueSix.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the standard queue.\n`;
+            s += `Removed <@${msg.member.id}> from the standard queue.\n`;
             if(queueSix.length > 0) {
-                s += `Users in queue: ${queueSixString()}`;
+                s += `Users in queue: ${queueSixString()}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1379,15 +1403,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueFour.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the doubles queue.\n`;
+            s += `Removed <@${msg.member.id}> from the doubles queue.\n`;
             if(queueFour.length > 0) {
-                s += `Users in queue: ${queueFourString()}`;
+                s += `Users in queue: ${queueFourString()}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1397,15 +1419,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueTwo.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the solo duel queue.\n`;
+            s += `Removed <@${msg.member.id}> from the solo duel queue.\n`;
             if(queueTwo.length > 0) {
-                s += `Users in queue: ${queueTwoString()}`;
+                s += `Users in queue: ${queueTwoString()}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1416,15 +1436,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueSixTier1.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 1 standard queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 1 standard queue.\n`;
             if(queueSixTier1.length > 0) {
-                s += `Users in queue: ${queueString(queueSixTier1)}`;
+                s += `Users in queue: ${queueString(queueSixTier1)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1434,15 +1452,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueFourTier1.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 1 doubles queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 1 doubles queue.\n`;
             if(queueFourTier1.length > 0) {
-                s += `Users in queue: ${queueString(queueFourTier1)}`;
+                s += `Users in queue: ${queueString(queueFourTier1)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1452,15 +1468,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueTwoTier1.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 1 solo duel queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 1 solo duel queue.\n`;
             if(queueTwoTier1.length > 0) {
-                s += `Users in queue: ${queueString(queueTwoTier1)}`;
+                s += `Users in queue: ${queueString(queueTwoTier1)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1472,15 +1486,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueSixTier2.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 2 standard queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 2 standard queue.\n`;
             if(queueSixTier2.length > 0) {
-                s += `Users in queue: ${queueString(queueSixTier2)}`;
+                s += `Users in queue: ${queueString(queueSixTier2)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1490,15 +1502,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueFourTier2.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 2 doubles queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 2 doubles queue.\n`;
             if(queueFourTier2.length > 0) {
-                s += `Users in queue: ${queueString(queueFourTier2)}`;
+                s += `Users in queue: ${queueString(queueFourTier2)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1508,15 +1518,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueTwoTier2.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 2 solo duel queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 2 solo duel queue.\n`;
             if(queueTwoTier2.length > 0) {
-                s += `Users in queue: ${queueString(queueTwoTier2)}`;
+                s += `Users in queue: ${queueString(queueTwoTier2)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1528,15 +1536,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueSixTier3.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 3 standard queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 3 standard queue.\n`;
             if(queueSixTier3.length > 0) {
-                s += `Users in queue: ${queueString(queueSixTier3)}`;
+                s += `Users in queue: ${queueString(queueSixTier3)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1546,15 +1552,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueFourTier3.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 3 doubles queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 3 doubles queue.\n`;
             if(queueFourTier3.length > 0) {
-                s += `Users in queue: ${queueString(queueFourTier3)}`;
+                s += `Users in queue: ${queueString(queueFourTier3)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1564,15 +1568,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueTwoTier3.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 3 solo duel queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 3 solo duel queue.\n`;
             if(queueTwoTier3.length > 0) {
-                s += `Users in queue: ${queueString(queueTwoTier3)}`;
+                s += `Users in queue: ${queueString(queueTwoTier3)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1584,15 +1586,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueSixTier4.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 4 standard queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 4 standard queue.\n`;
             if(queueSixTier4.length > 0) {
-                s += `Users in queue: ${queueString(queueSixTier4)}`;
+                s += `Users in queue: ${queueString(queueSixTier4)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1602,15 +1602,13 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueFourTier4.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 4 doubles queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 4 doubles queue.\n`;
             if(queueFourTier4.length > 0) {
-                s += `Users in queue: ${queueString(queueFourTier4)}`;
+                s += `Users in queue: ${queueString(queueFourTier4)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
@@ -1620,19 +1618,19 @@ function removeUserFromQueue(msg) {
         {
             // remove this member from the queue
             queueTwoTier4.splice(i, 1);
-            var s = `>>> Removed <@${msg.member.id}> from the tier 4 solo duel queue.\n`;
+            s += `Removed <@${msg.member.id}> from the tier 4 solo duel queue.\n`;
             if(queueTwoTier4.length > 0) {
-                s += `Users in queue: ${queueString(queueTwoTier4)}`;
+                s += `Users in queue: ${queueString(queueTwoTier4)}\n`;
             }
             else {
-                s += `No users left in queue.`
+                s += `No users left in queue.\n`
             }
-            msg.channel.send(s);
-            return;
         }
         i++;
     }
-    // user was not in any queues
+    if(s != ">>> ") {
+        msg.channel.send(s);
+    }
 }
 
 async function reportMatchResult(msg) {
