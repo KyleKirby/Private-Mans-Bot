@@ -1655,6 +1655,7 @@ async function reportMatchResult(msg) {
         case 'loss':
         case 'l':
         case 'lost':
+        case 'lose':
             if (msg.member.id in membersInMatches) {
                 // this user is in a match
                 matchId = membersInMatches[msg.member.id];
@@ -1702,6 +1703,7 @@ async function reportMatchResult(msg) {
                         case 'loss':
                         case 'l':
                         case 'lost':
+                        case 'lose':
                         userReportedOutcome = USER_REPORTED_LOSS;
                         break;
                     default:
@@ -1833,7 +1835,7 @@ Orange Team ${team1String}: ${userMentionString(match.teams[1])}`);
         }
         await reportResult(match);
     }
-    else if(arg === 'loss' || arg === 'lost' || arg === 'l'){
+    else if(arg === 'loss' || arg === 'lost' || arg === 'l' || arg === 'lose'){
         // this user's team lost the match
         if(teamId === 0) {
             team0String = 'lost';
