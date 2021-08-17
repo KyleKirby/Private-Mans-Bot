@@ -11,6 +11,7 @@ const config = require('./config.js');
 const Match = require('./match');
 const Player = require('./player');
 const Rating = require('./rating');
+const crypto = require('crypto');
 
 const mongo = require('mongodb');
 const fs = require('fs');
@@ -181,10 +182,8 @@ module.exports = {
         if(msg.channel.type === 'dm')
             // for now, ignore commands from DM channel
             return;
-        const msgContent = msg.content.slice();
-        msg.content = msg.content.toLowerCase();
-        //msg.channel.send(`received user command '${msg.content}'`);
-        let command = msg.content.split(' ')[0]; // let the command be the first word in the user message
+        const content = msg.content.toLowerCase();
+        const command = content.split(' ')[0]; // let the command be the first word in the user message
         switch(command) {
             case 'b':
             case 'balanced':
@@ -207,7 +206,6 @@ module.exports = {
             case 'cf':
             case 'coinflip':
             case 'flip':
-            msg.content = msgContent;
             flipCoin(msg);
             break;
 
@@ -270,6 +268,10 @@ module.exports = {
 
             case 'report':
             reportMatchResult(msg);
+            break;
+
+            case 'roll':
+            rollDiceCommand(msg);
             break;
 
             case 'set':
@@ -1972,6 +1974,79 @@ async function reportResult(match) {
             }
         }
     }
+}
+
+const RAND_NUM_BYTES = 6;
+function randInt(max) {
+    const buf = crypto.randomBytes(RAND_NUM_BYTES);
+    return buf.readUIntLE(0, RAND_NUM_BYTES) % max;
+}
+
+const MAX_NUM_DICE = 100;
+const MAX_SIDED_DIE = 1000;
+async function rollDiceCommand(msg) {
+    const args = msg.content.split(' ');
+    if(args.length < 2)
+        return;
+    let numDice = 1;
+    let diceSides = 2;
+    const dice = args[1].toLowerCase(); // expected to be #d#, for example 1d20. If there is no number in front it defaults to 1. So d20 is the same as 1d20
+    const dIndex = dice.indexOf('d');
+    if(dIndex < 0)
+        return;
+    else
+    {
+        const diceArgs = dice.split('d');
+        if(diceArgs[0] !== '')
+        {
+            numDice = Number(diceArgs[0]);
+            if(Number.isNaN(numDice) || numDice < 1 || numDice > MAX_NUM_DICE)
+                return;
+
+        }
+        if(diceArgs[1] !== '')
+        {
+            diceSides = Number(diceArgs[1]);
+            if(Number.isNaN(diceSides) || diceSides < 2 || diceSides > MAX_SIDED_DIE)
+                return;
+        }
+        else {
+            return;
+        }
+    }
+
+    if(numDice === 1)
+    {
+        const roll = randInt(diceSides) + 1;
+        if(roll === 1)
+            msg.reply(`You rolled **natural 1**`);
+        else if(roll === diceSides)
+            msg.reply(`You rolled **natural ${diceSides}**`);
+        else
+            msg.reply(`You rolled **${roll}**`);
+    }
+    else
+    {
+        // roll more than 1 die
+        const rolls = [];
+        let sum = 0;
+        for(let i = 0; i < numDice; i++)
+        {
+            const roll = randInt(diceSides) + 1;
+            rolls.push(roll);
+            sum += roll;
+        }
+
+        let s = 'You rolled';
+        for(roll of rolls)
+        {
+            s += ` ${roll} +`;
+        }
+        s = s.slice(0, s.length - 2) + ` = **${sum}**`;
+        msg.reply(s);
+
+    }
+    randInt(diceSides);
 }
 
 function setCommand(msg) {
